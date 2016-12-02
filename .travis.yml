@@ -7,14 +7,19 @@ matrix:
     include:
         - env:
             - IMAGE=mrokkk/devel
+            - JOB=coverage
             - COMPILER=g++
+            - CODECOV=1
           services:
             - docker
+
         - env:
             - IMAGE=mrokkk/devel
+            - JOB=coverage
             - COMPILER=clang++
           services:
             - docker
+
         - env:
             - IMAGE=mrokkk/devel
             - JOB=valgrind

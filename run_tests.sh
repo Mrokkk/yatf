@@ -15,6 +15,9 @@ case "$JOB" in
         cmake ..
         make -j$cores
         valgrind ./yatf ;;
+    "coverage")
+        cmake -DCOVERAGE=ON ..
+        make tests-cov -j$cores ;;
     *)
         cmake ..
         make tests-run -j$cores ;;
