@@ -114,10 +114,11 @@ struct test_session final {
             if (!cond) ++failed;
         }
 
-        void call() {
+        int call() {
             print_test_start_message();
             _func();
             print_test_result();
+            return failed;
         }
 
     };
@@ -140,12 +141,18 @@ public:
         _test_cases.add(t);
     }
 
-    void run() {
+    int run() {
+        unsigned failed = 0;
+        unsigned test_cases = 0;;
         yatf::detail::_print("\e[32m[========]\e[0m Running %u test cases\n\n", _tests_number);
         for (auto &test : _test_cases) {
             _current_test_case = &test;
-            test.call();
+            if (test.call()) failed++;
+            test_cases++;
         }
+        yatf::detail::_print("\e[32m[========]\e[0m Passed %u test cases\n", test_cases - failed);
+        if (failed) yatf::detail::_print("\e[31m[========]\e[0m Failed %u test cases\n", failed);
+        return failed;
     }
 
     test_case &current_test_case() {
@@ -187,9 +194,9 @@ tests_printer _print;
 
 } // namespace detail
 
-void main(tests_printer printer) {
+int main(tests_printer printer) {
     detail::_print = printer;
-    detail::test_session::get().run();
+    return detail::test_session::get().run();
 }
 
 #endif

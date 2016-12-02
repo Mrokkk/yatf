@@ -3,7 +3,6 @@
 #include <cstdio>
 
 int main() {
-    yatf::main(printf);
-    return 0;
+    return yatf::main(printf);
 }
 
