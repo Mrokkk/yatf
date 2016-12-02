@@ -4,5 +4,6 @@
 
 int main() {
     yatf::main(printf);
+    return 0;
 }
 
