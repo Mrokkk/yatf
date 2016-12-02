@@ -4,7 +4,7 @@ set -e
 
 dir=$(dirname $0)
 
-cd $dir
+cd $dir/..
 mkdir -p build
 cd build
 
