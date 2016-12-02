@@ -1,0 +1,31 @@
+sudo: required
+
+before_install:
+  - docker pull mrokkk/devel
+
+matrix:
+    include:
+        - env:
+            - IMAGE=mrokkk/devel
+            - COMPILER=g++
+          services:
+            - docker
+        - env:
+            - IMAGE=mrokkk/devel
+            - COMPILER=clang++
+          services:
+            - docker
+        - env:
+            - IMAGE=mrokkk/devel
+            - JOB=valgrind
+            - COMPILER=g++
+          services:
+            - docker
+
+language: cpp
+
+script: ./ci.sh
+
+after_success:
+    - "if [ \"$CODECOV\" ]; then bash <(curl -s https://codecov.io/bash); fi"
+
