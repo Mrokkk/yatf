@@ -4,7 +4,7 @@
 
 namespace yatf {
 
-using tests_printer = void (*)(const char *, ...);
+using tests_printer = int (*)(const char *, ...);
 
 namespace detail {
 
