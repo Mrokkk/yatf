@@ -29,7 +29,7 @@ matrix:
 
 language: cpp
 
-script: ./scripts/ci.sh
+script: ./ci/ci.sh
 
 after_success:
     - "if [ \"$CODECOV\" ]; then bash <(curl -s https://codecov.io/bash); fi"
