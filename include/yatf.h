@@ -87,11 +87,11 @@ struct test_session final {
         const char *_pass_message = "\e[32m[  PASS  ]\e[0m";
         const char *_fail_message = "\e[31m[  FAIL  ]\e[0m";
 
-        void print_test_start_message() {
+        void print_test_start_message() const {
             _print("%s %s.%s ", _run_message, _suite_name, _test_name);
         }
 
-        void print_test_result() {
+        void print_test_result() const {
             if (failed) {
                 _print("\n%s ", _fail_message);
                 _print("%s.%s (%u assertions)\n\n", _suite_name, _test_name, assertions);
@@ -105,8 +105,8 @@ struct test_session final {
 
     public:
 
-        int assertions = 0;
-        int failed = 0;
+        unsigned assertions = 0;
+        unsigned failed = 0;
 
         test_case(const char *suite, const char *test, void (*func)())
                 : _suite_name(suite), _test_name(test), _func(func) {
@@ -249,7 +249,7 @@ inline void print(const First &first, const Rest &... rest) {
 #define EXPECT_TRUE(cond) REQUIRE(cond)
 
 #define YATF_UNIQUE_NAME(name) \
-    name##__COUNTER__
+    name##__LINE__
 
 #define TEST(suite, name) \
     static void suite##_##name(); \
