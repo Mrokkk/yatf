@@ -10,6 +10,89 @@ namespace detail {
 
 extern tests_printer _print;
 
+struct printer {
+
+    enum class cursor_movement {
+        line_beggining
+    };
+
+    enum class color {
+        red,
+        green,
+        reset
+    };
+
+    static void print(const char *str) {
+        _print(str);
+    }
+
+    static void print(char c) {
+        _print("%c", c);
+    }
+
+    static void print(unsigned char c) {
+        _print("0x%x", c);
+    }
+
+    static void print(short a) {
+        _print("%d", a);
+    }
+
+    static void print(unsigned short a) {
+        _print("0x%x", a);
+    }
+
+    static void print(int a) {
+        _print("%d", a);
+    }
+
+    static void print(unsigned int a) {
+        _print("0x%x", a);
+    }
+
+    static void print(void *a) {
+        _print("0x%x", reinterpret_cast<unsigned long>(a));
+    }
+
+    static void print(std::nullptr_t) {
+        _print("NULL");
+    }
+
+    static void print(color c) {
+        switch (c) {
+            case color::red:
+                _print("\e[31m");
+                break;
+            case color::green:
+                _print("\e[32m");
+                break;
+            case color::reset:
+                _print("\e[0m");
+                break;
+        }
+    }
+
+    static void print(cursor_movement c) {
+        switch (c) {
+            case cursor_movement::line_beggining:
+                _print("\033[1000D");
+                break;
+        }
+    }
+
+    template <typename T>
+    static void print(const T &a) {
+        _print("0x%x", reinterpret_cast<unsigned long>(&a));
+    }
+
+    template<typename First, typename... Rest>
+    static void print(const First &first, const Rest &... rest) {
+        print(first);
+        print(rest...);
+    }
+
+};
+
 struct test_session final {
 
     // Minimal version of inherited_list
@@ -83,23 +166,22 @@ struct test_session final {
         const char *_suite_name;
         const char *_test_name;
         void (*_func)();
-        const char *_run_message = "\e[32m[  RUN   ]\e[0m";
-        const char *_pass_message = "\e[32m[  PASS  ]\e[0m";
-        const char *_fail_message = "\e[31m[  FAIL  ]\e[0m";
+        const char *_run_message = "[  RUN   ]";
+        const char *_pass_message = "[  PASS  ]";
+        const char *_fail_message = "[  FAIL  ]";
 
         void print_test_start_message() const {
-            _print("%s %s.%s ", _run_message, _suite_name, _test_name);
+            printer::print(printer::color::green, _run_message, printer::color::reset, " ",  _suite_name, ".", _test_name, " ");
         }
 
         void print_test_result() const {
             if (failed) {
-                _print("\n%s ", _fail_message);
-                _print("%s.%s (%u assertions)\n\n", _suite_name, _test_name, assertions);
+                printer::print("\n", printer::color::red, _fail_message, printer::color::reset, " ");
+                printer::print(_suite_name, ".", _test_name, " (", static_cast<int>(assertions), " assertions)\n\n");
             }
             else {
-                _print("(%u assertions)", assertions);
-                _print("\033[1000D");
-                _print("%s\n\n", _pass_message);
+                printer::print("(", static_cast<int>(assertions), " assertions)", printer::cursor_movement::line_beggining);
+                printer::print(printer::color::green, _pass_message, printer::color::reset, "\n\n");
             }
         }
 
@@ -175,72 +257,27 @@ public:
 
 };
 
-inline void print(const char *str) {
-    _print(str);
-}
 
-inline void print(char c) {
-    _print("%c", c);
-}
-
-inline void print(unsigned char c) {
-    _print("0x%x", c);
-}
-
-inline void print(short a) {
-    _print("%d", a);
-}
-
-inline void print(unsigned short a) {
-    _print("0x%x", a);
-}
-
-inline void print(int a) {
-    _print("%d", a);
-}
-
-inline void print(unsigned int a) {
-    _print("0x%x", a);
-}
-
-inline void print(void *a) {
-    _print("0x%x", reinterpret_cast<unsigned long>(a));
-}
-
-inline void print(std::nullptr_t) {
-    _print("NULL");
-}
-
-template <typename T>
-inline void print(const T &a) {
-    _print("0x%x", reinterpret_cast<unsigned long>(&a));
-}
-
-template<typename First, typename... Rest>
-inline void print(const First &first, const Rest &... rest) {
-    print(first);
-    print(rest...);
-}
 
 } // namespace detail
 
 #define REQUIRE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(cond)) \
-            yatf::detail::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false"); \
+            yatf::detail::printer::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false"); \
     }
 
 #define REQUIRE_FALSE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(!(cond))) \
-            yatf::detail::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true"); \
+            yatf::detail::printer::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true"); \
     }
 
 #define REQUIRE_EQ(lhs, rhs) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
-            yatf::detail::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
-            yatf::detail::print(lhs, " != ", rhs); \
+            yatf::detail::printer::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
+            yatf::detail::printer::print(lhs, " != ", rhs); \
         } \
     }
 
@@ -265,8 +302,8 @@ tests_printer _print;
 
 } // namespace detail
 
-inline int main(tests_printer printer) {
-    detail::_print = printer;
+inline int main(tests_printer print_func) {
+    detail::_print = print_func;
     return detail::test_session::get().run();
 }
 
