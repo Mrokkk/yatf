@@ -115,6 +115,14 @@ struct test_session final {
             return cond;
         }
 
+        template <typename Type>
+        bool assert_eq(Type lhs, Type rhs) {
+            ++assertions;
+            bool cond = lhs == rhs;
+            if (!cond) ++failed;
+            return cond;
+        }
+
         int call() {
             print_test_start_message();
             _func();
@@ -174,6 +182,12 @@ public:
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(!(cond))) \
             yatf::detail::_print("assertion failed: %s:%d: \'%s\' is true\n", __FILE__, __LINE__, #cond); \
+    }
+
+#define REQUIRE_EQ(lhs, rhs) \
+    { \
+        if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) \
+            yatf::detail::_print("assertion failed: %s:%d: \'%s\' isn't \'%s\'\n", __FILE__, __LINE__, #lhs, #rhs); \
     }
 
 #define YATF_UNIQUE_NAME(name) \
