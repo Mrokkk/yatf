@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
 
 namespace yatf {
 
@@ -115,10 +115,10 @@ struct test_session final {
             return cond;
         }
 
-        template <typename Type>
-        bool assert_eq(Type lhs, Type rhs) {
+        template <typename T1, typename T2>
+        bool assert_eq(T1 lhs, T2 rhs) {
             ++assertions;
-            bool cond = lhs == rhs;
+            bool cond = (lhs == rhs);
             if (!cond) ++failed;
             return cond;
         }
@@ -202,6 +202,15 @@ inline void print(void *a) {
     _print("0x%x", reinterpret_cast<unsigned long>(a));
 }
 
+inline void print(std::nullptr_t) {
+    _print("NULL");
+}
+
+template <typename T>
+inline void print(const T &a) {
+    _print("0x%x", reinterpret_cast<unsigned long>(&a));
+}
+
 template<typename First, typename... Rest>
 inline void print(const First &first, const Rest &... rest) {
     print(first);
@@ -229,6 +238,10 @@ inline void print(const First &first, const Rest &... rest) {
             yatf::detail::print(lhs, " != ", rhs, "\n"); \
         } \
     }
+
+// gtest compatible
+#define EXPECT_EQ(lhs, rhs) REQUIRE_EQ(lhs, rhs)
+#define EXPECT_TRUE(cond) REQUIRE(cond)
 
 #define YATF_UNIQUE_NAME(name) \
     name##__COUNTER__
