@@ -88,15 +88,19 @@ struct test_session final {
         const char *_fail_message = "\e[31m[  FAIL  ]\e[0m";
 
         void print_test_start_message() {
-            _print("%s %s.%s\n", _run_message, _suite_name, _test_name);
+            _print("%s %s.%s ", _run_message, _suite_name, _test_name);
         }
 
         void print_test_result() {
-            if (failed)
-                _print("%s ", _fail_message);
-            else
-                _print("%s ", _pass_message);
-            _print("%s.%s (%u assertions)\n\n", _suite_name, _test_name, assertions);
+            if (failed) {
+                _print("\n%s ", _fail_message);
+                _print("%s.%s (%u assertions)\n\n", _suite_name, _test_name, assertions);
+            }
+            else {
+                _print("(%u assertions)", assertions);
+                _print("\033[1000D");
+                _print("%s\n\n", _pass_message);
+            }
         }
 
     public:
@@ -223,20 +227,20 @@ inline void print(const First &first, const Rest &... rest) {
 #define REQUIRE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(cond)) \
-            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
+            yatf::detail::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false"); \
     }
 
 #define REQUIRE_FALSE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(!(cond))) \
-            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
+            yatf::detail::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true"); \
     }
 
 #define REQUIRE_EQ(lhs, rhs) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
-            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
-            yatf::detail::print(lhs, " != ", rhs, "\n"); \
+            yatf::detail::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
+            yatf::detail::print(lhs, " != ", rhs); \
         } \
     }
 
