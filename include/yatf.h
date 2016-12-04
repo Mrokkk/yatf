@@ -170,24 +170,64 @@ public:
 
 };
 
+inline void print(const char *str) {
+    _print(str);
+}
+
+inline void print(char c) {
+    _print("%c", c);
+}
+
+inline void print(unsigned char c) {
+    _print("0x%x", c);
+}
+
+inline void print(short a) {
+    _print("%d", a);
+}
+
+inline void print(unsigned short a) {
+    _print("0x%x", a);
+}
+
+inline void print(int a) {
+    _print("%d", a);
+}
+
+inline void print(unsigned int a) {
+    _print("0x%x", a);
+}
+
+inline void print(void *a) {
+    _print("0x%x", reinterpret_cast<unsigned long>(a));
+}
+
+template<typename First, typename... Rest>
+inline void print(const First &first, const Rest &... rest) {
+    print(first);
+    print(rest...);
+}
+
 } // namespace detail
 
 #define REQUIRE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(cond)) \
-            yatf::detail::_print("assertion failed: %s:%d: \'%s\' is false\n", __FILE__, __LINE__, #cond); \
+            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
     }
 
 #define REQUIRE_FALSE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(!(cond))) \
-            yatf::detail::_print("assertion failed: %s:%d: \'%s\' is true\n", __FILE__, __LINE__, #cond); \
+            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
     }
 
 #define REQUIRE_EQ(lhs, rhs) \
     { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) \
-            yatf::detail::_print("assertion failed: %s:%d: \'%s\' isn't \'%s\'\n", __FILE__, __LINE__, #lhs, #rhs); \
+        if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
+            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
+            yatf::detail::print(lhs, " != ", rhs, "\n"); \
+        } \
     }
 
 #define YATF_UNIQUE_NAME(name) \
