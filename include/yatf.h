@@ -117,6 +117,7 @@ struct test_session final {
 
         template <typename T1, typename T2>
         bool assert_eq(T1 lhs, T2 rhs) {
+            (void)lhs; (void)rhs; // for gcc
             ++assertions;
             bool cond = (lhs == rhs);
             if (!cond) ++failed;
