@@ -4,13 +4,106 @@
 
 namespace yatf {
 
-using tests_printer = int (*)(const char *, ...);
+using printf_t = int (*)(const char *, ...);
 
 namespace detail {
 
-extern tests_printer _print;
+extern printf_t _print;
+
+struct printer {
+
+    enum class cursor_movement { up };
+
+    enum class color { red, green, reset };
+
+    static void print(const char *str) {
+        _print(str);
+    }
+
+    static void print(char c) {
+        _print("%c", c);
+    }
+
+    static void print(unsigned char c) {
+        _print("0x%x", c);
+    }
+
+    static void print(short a) {
+        _print("%d", a);
+    }
+
+    static void print(unsigned short a) {
+        _print("0x%x", a);
+    }
+
+    static void print(int a) {
+        _print("%d", a);
+    }
+
+    static void print(unsigned int a) {
+        _print("0x%x", a);
+    }
+
+    static void print(void *a) {
+        _print("0x%x", reinterpret_cast<unsigned long>(a));
+    }
+
+    static void print(std::nullptr_t) {
+        _print("NULL");
+    }
+
+    static void print(color c) {
+        switch (c) {
+            case color::red:
+                _print("\e[31m");
+                break;
+            case color::green:
+                _print("\e[32m");
+                break;
+            case color::reset:
+                _print("\e[0m");
+                break;
+        }
+    }
+
+    static void print(cursor_movement c) {
+        switch (c) {
+            case cursor_movement::up:
+                _print("\033[1A");
+                break;
+        }
+    }
+
+    template <typename T>
+    static void print(const T &a) {
+        _print("0x%x", reinterpret_cast<unsigned long>(&a));
+    }
+
+    template<typename First, typename... Rest>
+    static void print(const First &first, const Rest &... rest) {
+        print(first);
+        print(rest...);
+    }
+
+};
 
 struct test_session final {
+
+    struct messages final {
+
+        enum class msg { start_end, run, pass, fail };
+
+        static const char *get(msg m) {
+            const char *_run_message[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
+            return _run_message[static_cast<int>(m)];
+        }
+
+    };
+
+    struct config final {
+        bool color = true;
+        bool oneliners = false;
+    };
 
     // Minimal version of inherited_list
     template <typename Type>
@@ -80,32 +173,17 @@ struct test_session final {
 
     class test_case final : public tests_list<test_case> {
 
-        const char *_suite_name;
-        const char *_test_name;
-        void (*_func)();
-        const char *_run_message = "\e[32m[  RUN   ]\e[0m";
-        const char *_pass_message = "\e[32m[  PASS  ]\e[0m";
-        const char *_fail_message = "\e[31m[  FAIL  ]\e[0m";
-
-        void print_test_start_message() {
-            _print("%s %s.%s\n", _run_message, _suite_name, _test_name);
-        }
-
-        void print_test_result() {
-            if (failed)
-                _print("%s ", _fail_message);
-            else
-                _print("%s ", _pass_message);
-            _print("%s.%s (%u assertions)\n\n", _suite_name, _test_name, assertions);
-        }
+        void (*func)();
 
     public:
 
-        int assertions = 0;
-        int failed = 0;
+        const char *suite_name;
+        const char *test_name;
+        unsigned assertions = 0;
+        unsigned failed = 0;
 
         test_case(const char *suite, const char *test, void (*func)())
-                : _suite_name(suite), _test_name(test), _func(func) {
+                : func(func), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
         }
 
@@ -125,9 +203,7 @@ struct test_session final {
         }
 
         int call() {
-            print_test_start_message();
-            _func();
-            print_test_result();
+            func();
             return failed;
         }
 
@@ -139,6 +215,45 @@ private:
     test_case *_current_test_case;
     size_t _tests_number = 0;
     static test_session _instance;
+    static config _config;
+
+    void print_in_color(const char *str, printer::color color) const {
+        if (_config.color) printer::print(color);
+        printer::print(str);
+        if (_config.color) printer::print(printer::color::reset);
+    }
+
+    void test_session_start_message() const {
+        print_in_color(messages::get(messages::msg::start_end), printer::color::green);
+        printer::print(" Running ", static_cast<int>(_tests_number), " test cases\n");
+    }
+
+    void test_session_end_message(int failed) const {
+        print_in_color(messages::get(messages::msg::start_end), printer::color::green);
+        printer::print(" Passed ", static_cast<int>(_tests_number - failed), " test cases\n");
+        if (failed) {
+            print_in_color(messages::get(messages::msg::start_end), printer::color::red);
+            printer::print(" Failed ", static_cast<int>(failed), " test cases\n");
+        }
+    }
+
+    void test_start_message(test_case &t) const {
+        print_in_color(messages::get(messages::msg::run), printer::color::green);
+        printer::print(" ",  t.suite_name, ".", t.test_name, "\n");
+    }
+
+    void test_result(test_case &t) const {
+        if (t.failed) {
+            print_in_color(messages::get(messages::msg::fail), printer::color::red);
+            printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
+        }
+        else {
+            if (_config.oneliners)
+                printer::print(printer::cursor_movement::up);
+            print_in_color(messages::get(messages::msg::pass), printer::color::green);
+            printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
+        }
+    }
 
 public:
 
@@ -151,17 +266,20 @@ public:
         _test_cases.add(t);
     }
 
-    int run() {
+    int run(config c) {
         unsigned failed = 0;
-        unsigned test_cases = 0;;
-        _print("\e[32m[========]\e[0m Running %u test cases\n\n", _tests_number);
+        unsigned test_cases = 0;
+        _config = c;
+        test_session_start_message();
         for (auto &test : _test_cases) {
+            test_start_message(test);
             _current_test_case = &test;
-            if (test.call()) failed++;
+            if (test.call())
+                failed++;
+            test_result(test);
             test_cases++;
         }
-        _print("\e[32m[========]\e[0m Passed %u test cases\n", test_cases - failed);
-        if (failed) _print("\e[31m[========]\e[0m Failed %u test cases\n", failed);
+        test_session_end_message(failed);
         return failed;
     }
 
@@ -171,72 +289,25 @@ public:
 
 };
 
-inline void print(const char *str) {
-    _print(str);
-}
-
-inline void print(char c) {
-    _print("%c", c);
-}
-
-inline void print(unsigned char c) {
-    _print("0x%x", c);
-}
-
-inline void print(short a) {
-    _print("%d", a);
-}
-
-inline void print(unsigned short a) {
-    _print("0x%x", a);
-}
-
-inline void print(int a) {
-    _print("%d", a);
-}
-
-inline void print(unsigned int a) {
-    _print("0x%x", a);
-}
-
-inline void print(void *a) {
-    _print("0x%x", reinterpret_cast<unsigned long>(a));
-}
-
-inline void print(std::nullptr_t) {
-    _print("NULL");
-}
-
-template <typename T>
-inline void print(const T &a) {
-    _print("0x%x", reinterpret_cast<unsigned long>(&a));
-}
-
-template<typename First, typename... Rest>
-inline void print(const First &first, const Rest &... rest) {
-    print(first);
-    print(rest...);
-}
-
 } // namespace detail
 
 #define REQUIRE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(cond)) \
-            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
+            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
     }
 
 #define REQUIRE_FALSE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(!(cond))) \
-            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
+            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
     }
 
 #define REQUIRE_EQ(lhs, rhs) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
-            yatf::detail::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
-            yatf::detail::print(lhs, " != ", rhs, "\n"); \
+            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
+            yatf::detail::printer::print(lhs, " != ", rhs, "\n"); \
         } \
     }
 
@@ -245,7 +316,7 @@ inline void print(const First &first, const Rest &... rest) {
 #define EXPECT_TRUE(cond) REQUIRE(cond)
 
 #define YATF_UNIQUE_NAME(name) \
-    name##__COUNTER__
+    name##__LINE__
 
 #define TEST(suite, name) \
     static void suite##_##name(); \
@@ -257,13 +328,36 @@ inline void print(const First &first, const Rest &... rest) {
 namespace detail {
 
 test_session test_session::_instance;
-tests_printer _print;
+test_session::config test_session::_config;
+printf_t _print;
 
 } // namespace detail
 
-inline int main(tests_printer printer) {
-    detail::_print = printer;
-    return detail::test_session::get().run();
+inline int strcmp(const char *string1, const char *string2) {
+    if (string1 == 0 || string2 == 0) return 1;
+    while (1) {
+        if (*string1++ != *string2++)
+            return 1;
+        if (*string1 == '\0' && *string2 == '\0')
+            return 0;
+        if (*string1 == '\0' || *string2 == '\0')
+            return 1;
+    }
+    return 0;
+}
+
+inline detail::test_session::config config(unsigned argc, const char **argv) {
+    detail::test_session::config c;
+    for (unsigned i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "--no-color")) c.color = false;
+        else if (!strcmp(argv[i], "--oneliners")) c.oneliners = true;
+    }
+    return c;
+}
+
+inline int main(printf_t print_func, unsigned argc = 0, const char **argv = nullptr) {
+    detail::_print = print_func;
+    return detail::test_session::get().run(config(argc, argv));
 }
 
 #endif
