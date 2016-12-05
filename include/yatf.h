@@ -4,11 +4,11 @@
 
 namespace yatf {
 
-using tests_printer = int (*)(const char *, ...);
+using printf_t = int (*)(const char *, ...);
 
 namespace detail {
 
-extern tests_printer _print;
+extern printf_t _print;
 
 struct printer {
 
@@ -329,7 +329,7 @@ namespace detail {
 
 test_session test_session::_instance;
 test_session::config test_session::_config;
-tests_printer _print;
+printf_t _print;
 
 } // namespace detail
 
@@ -355,7 +355,7 @@ inline detail::test_session::config config(unsigned argc, const char **argv) {
     return c;
 }
 
-inline int main(tests_printer print_func, unsigned argc = 0, const char **argv = nullptr) {
+inline int main(printf_t print_func, unsigned argc = 0, const char **argv = nullptr) {
     detail::_print = print_func;
     return detail::test_session::get().run(config(argc, argv));
 }
