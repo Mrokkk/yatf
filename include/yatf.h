@@ -177,11 +177,11 @@ struct test_session final {
         void print_test_result() const {
             if (failed) {
                 printer::print("\n", printer::color::red, _fail_message, printer::color::reset, " ");
-                printer::print(_suite_name, ".", _test_name, " (", static_cast<int>(assertions), " assertions)\n\n");
+                printer::print(_suite_name, ".", _test_name, " (", static_cast<int>(assertions), " assertions)\n");
             }
             else {
                 printer::print("(", static_cast<int>(assertions), " assertions)", printer::cursor_movement::line_beggining);
-                printer::print(printer::color::green, _pass_message, printer::color::reset, "\n\n");
+                printer::print(printer::color::green, _pass_message, printer::color::reset, "\n");
             }
         }
 
@@ -240,7 +240,7 @@ public:
     int run() {
         unsigned failed = 0;
         unsigned test_cases = 0;;
-        _print("\e[32m[========]\e[0m Running %u test cases\n\n", _tests_number);
+        _print("\e[32m[========]\e[0m Running %u test cases\n", _tests_number);
         for (auto &test : _test_cases) {
             _current_test_case = &test;
             if (test.call()) failed++;
