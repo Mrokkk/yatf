@@ -95,6 +95,19 @@ struct printer {
 
 struct test_session final {
 
+    struct messages final {
+
+        enum class msg {
+            run, pass, fail
+        };
+
+        static const char *get(msg m) {
+            const char *_run_message[3] = { "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]" };
+            return _run_message[static_cast<int>(m)];
+        }
+
+    };
+
     // Minimal version of inherited_list
     template <typename Type>
     class tests_list {
@@ -161,37 +174,16 @@ struct test_session final {
 
     };
 
-    class test_case final : public tests_list<test_case> {
+    struct test_case final : public tests_list<test_case> {
 
-        const char *_suite_name;
-        const char *_test_name;
-        void (*_func)();
-        const char *_run_message = "[  RUN   ]";
-        const char *_pass_message = "[  PASS  ]";
-        const char *_fail_message = "[  FAIL  ]";
-
-        void print_test_start_message() const {
-            printer::print(printer::color::green, _run_message, printer::color::reset, " ",  _suite_name, ".", _test_name, " ");
-        }
-
-        void print_test_result() const {
-            if (failed) {
-                printer::print("\n", printer::color::red, _fail_message, printer::color::reset, " ");
-                printer::print(_suite_name, ".", _test_name, " (", static_cast<int>(assertions), " assertions)\n");
-            }
-            else {
-                printer::print("(", static_cast<int>(assertions), " assertions)", printer::cursor_movement::line_beggining);
-                printer::print(printer::color::green, _pass_message, printer::color::reset, "\n");
-            }
-        }
-
-    public:
-
+        const char *suite_name;
+        const char *test_name;
+        void (*func)();
         unsigned assertions = 0;
         unsigned failed = 0;
 
         test_case(const char *suite, const char *test, void (*func)())
-                : _suite_name(suite), _test_name(test), _func(func) {
+                : suite_name(suite), test_name(test), func(func) {
             test_session::get().register_test(this);
         }
 
@@ -211,9 +203,7 @@ struct test_session final {
         }
 
         int call() {
-            print_test_start_message();
-            _func();
-            print_test_result();
+            func();
             return failed;
         }
 
@@ -225,6 +215,22 @@ private:
     test_case *_current_test_case;
     size_t _tests_number = 0;
     static test_session _instance;
+
+
+    void print_test_start_message(test_case &t) const {
+        printer::print(printer::color::green, messages::get(messages::msg::run), printer::color::reset, " ",  t.suite_name, ".", t.test_name, " ");
+    }
+
+    void print_test_result(test_case &t) const {
+        if (t.failed) {
+            printer::print("\n", printer::color::red, messages::get(messages::msg::fail), printer::color::reset, " ");
+            printer::print(t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
+        }
+        else {
+            printer::print("(", static_cast<int>(t.assertions), " assertions)", printer::cursor_movement::line_beggining);
+            printer::print(printer::color::green, messages::get(messages::msg::pass), printer::color::reset, "\n");
+        }
+    }
 
 public:
 
@@ -242,8 +248,10 @@ public:
         unsigned test_cases = 0;;
         _print("\e[32m[========]\e[0m Running %u test cases\n", _tests_number);
         for (auto &test : _test_cases) {
+            print_test_start_message(test);
             _current_test_case = &test;
             if (test.call()) failed++;
+            print_test_result(test);
             test_cases++;
         }
         _print("\e[32m[========]\e[0m Passed %u test cases\n", test_cases - failed);
@@ -256,8 +264,6 @@ public:
     }
 
 };
-
-
 
 } // namespace detail
 
