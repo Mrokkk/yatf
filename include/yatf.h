@@ -214,8 +214,8 @@ private:
     tests_list<test_case> _test_cases;
     test_case *_current_test_case;
     size_t _tests_number = 0;
+    config _config;
     static test_session _instance;
-    static config _config;
 
     void print_in_color(const char *str, printer::color color) const {
         if (_config.color) printer::print(color);
@@ -328,7 +328,6 @@ public:
 namespace detail {
 
 test_session test_session::_instance;
-test_session::config test_session::_config;
 printf_t _printf;
 
 } // namespace detail
