@@ -108,7 +108,7 @@ struct test_session final {
 
     };
 
-    struct config {
+    struct config final {
         bool color = true;
         bool oneliners = false;
     };
@@ -179,16 +179,19 @@ struct test_session final {
 
     };
 
-    struct test_case final : public tests_list<test_case> {
+    class test_case final : public tests_list<test_case> {
+
+        void (*func)();
+
+    public:
 
         const char *suite_name;
         const char *test_name;
-        void (*func)();
         unsigned assertions = 0;
         unsigned failed = 0;
 
         test_case(const char *suite, const char *test, void (*func)())
-                : suite_name(suite), test_name(test), func(func) {
+                : func(func), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
         }
 
@@ -222,19 +225,41 @@ private:
     static test_session _instance;
     static config _config;
 
+    void print_in_color(const char *str, printer::color color) const {
+        if (_config.color) printer::print(color);
+        printer::print(str);
+        if (_config.color) printer::print(printer::color::reset);
+    }
+
+    void print_test_session_start_message() const {
+        print_in_color(messages::get(messages::msg::start_end), printer::color::green);
+        printer::print(" Running ", static_cast<int>(_tests_number), " test cases\n");
+    }
+
+    void print_test_session_end_message(int failed) const {
+        print_in_color(messages::get(messages::msg::start_end), printer::color::green);
+        printer::print(" Passed ", static_cast<int>(_tests_number - failed), " test cases\n");
+        if (failed) {
+            print_in_color(messages::get(messages::msg::start_end), printer::color::red);
+            printer::print(" Failed ", static_cast<int>(failed), " test cases\n");
+        }
+    }
+
     void print_test_start_message(test_case &t) const {
-        printer::print(printer::color::green, messages::get(messages::msg::run), printer::color::reset, " ",  t.suite_name, ".", t.test_name, "\n");
+        print_in_color(messages::get(messages::msg::run), printer::color::green);
+        printer::print(" ",  t.suite_name, ".", t.test_name, "\n");
     }
 
     void print_test_result(test_case &t) const {
         if (t.failed) {
-            printer::print(printer::color::red, messages::get(messages::msg::fail), printer::color::reset, " ");
-            printer::print(t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
+            print_in_color(messages::get(messages::msg::fail), printer::color::red);
+            printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
         else {
             if (_config.oneliners)
                 printer::print(printer::cursor_movement::up);
-            printer::print(printer::color::green, messages::get(messages::msg::pass), printer::color::reset, " ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
+            print_in_color(messages::get(messages::msg::pass), printer::color::green);
+            printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
     }
 
@@ -251,18 +276,18 @@ public:
 
     int run(config c) {
         unsigned failed = 0;
-        unsigned test_cases = 0;;
+        unsigned test_cases = 0;
         _config = c;
-        printer::print(printer::color::green, messages::get(messages::msg::start_end), printer::color::reset, " Running ", static_cast<int>(_tests_number), " test cases\n");
+        print_test_session_start_message();
         for (auto &test : _test_cases) {
             print_test_start_message(test);
             _current_test_case = &test;
-            if (test.call()) failed++;
+            if (test.call())
+                failed++;
             print_test_result(test);
             test_cases++;
         }
-        printer::print(printer::color::green, messages::get(messages::msg::start_end), printer::color::reset, " Passed ", static_cast<int>(_tests_number - failed), " test cases\n");
-        if (failed) printer::print(printer::color::red, messages::get(messages::msg::start_end), printer::color::reset, " Failed ", static_cast<int>(failed), " test cases\n");
+        print_test_session_end_message(failed);
         return failed;
     }
 
