@@ -6,6 +6,12 @@ namespace yatf {
 
 using printf_t = int (*)(const char *, ...);
 
+struct config final {
+    bool color = true;
+    bool oneliners = false;
+    bool fails_only = false;
+};
+
 namespace detail {
 
 extern printf_t _printf;
@@ -98,12 +104,6 @@ struct test_session final {
             return _run_message[static_cast<int>(m)];
         }
 
-    };
-
-    struct config final {
-        bool color = true;
-        bool oneliners = false;
-        bool fails_only = false;
     };
 
     // Minimal version of inherited_list
@@ -348,8 +348,8 @@ inline int strcmp(const char *string1, const char *string2) {
     return 0;
 }
 
-inline detail::test_session::config config(unsigned argc, const char **argv) {
-    detail::test_session::config c;
+inline config read_config(unsigned argc, const char **argv) {
+    config c;
     for (unsigned i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--no-color")) c.color = false;
         else if (!strcmp(argv[i], "--oneliners")) c.oneliners = true;
@@ -360,7 +360,12 @@ inline detail::test_session::config config(unsigned argc, const char **argv) {
 
 inline int main(printf_t print_func, unsigned argc = 0, const char **argv = nullptr) {
     detail::_printf = print_func;
-    return detail::test_session::get().run(config(argc, argv));
+    return detail::test_session::get().run(read_config(argc, argv));
+}
+
+inline int main(printf_t print_func, config &c) {
+    detail::_printf = print_func;
+    return detail::test_session::get().run(c);
 }
 
 #endif
