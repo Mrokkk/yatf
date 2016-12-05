@@ -108,6 +108,11 @@ struct test_session final {
 
     };
 
+    struct config {
+        bool color = true;
+        bool oneliners = false;
+    };
+
     // Minimal version of inherited_list
     template <typename Type>
     class tests_list {
@@ -245,7 +250,7 @@ public:
         _test_cases.add(t);
     }
 
-    int run() {
+    int run(config) {
         unsigned failed = 0;
         unsigned test_cases = 0;;
         printer::print(printer::color::green, messages::get(messages::msg::start_end), printer::color::reset, " Running ", static_cast<int>(_tests_number), " test cases\n");
@@ -310,9 +315,13 @@ tests_printer _print;
 
 } // namespace detail
 
-inline int main(tests_printer print_func) {
+inline detail::test_session::config config(unsigned, char **) {
+    return {};
+}
+
+inline int main(tests_printer print_func, unsigned argc = 0, char **argv = nullptr) {
     detail::_print = print_func;
-    return detail::test_session::get().run();
+    return detail::test_session::get().run(config(argc, argv));
 }
 
 #endif
