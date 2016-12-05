@@ -8,7 +8,7 @@ using printf_t = int (*)(const char *, ...);
 
 namespace detail {
 
-extern printf_t _print;
+extern printf_t _printf;
 
 struct printer {
 
@@ -17,51 +17,51 @@ struct printer {
     enum class color { red, green, reset };
 
     static void print(const char *str) {
-        _print(str);
+        _printf(str);
     }
 
     static void print(char c) {
-        _print("%c", c);
+        _printf("%c", c);
     }
 
     static void print(unsigned char c) {
-        _print("0x%x", c);
+        _printf("0x%x", c);
     }
 
     static void print(short a) {
-        _print("%d", a);
+        _printf("%d", a);
     }
 
     static void print(unsigned short a) {
-        _print("0x%x", a);
+        _printf("0x%x", a);
     }
 
     static void print(int a) {
-        _print("%d", a);
+        _printf("%d", a);
     }
 
     static void print(unsigned int a) {
-        _print("0x%x", a);
+        _printf("0x%x", a);
     }
 
     static void print(void *a) {
-        _print("0x%x", reinterpret_cast<unsigned long>(a));
+        _printf("0x%x", reinterpret_cast<unsigned long>(a));
     }
 
     static void print(std::nullptr_t) {
-        _print("NULL");
+        _printf("NULL");
     }
 
     static void print(color c) {
         switch (c) {
             case color::red:
-                _print("\e[31m");
+                _printf("\e[31m");
                 break;
             case color::green:
-                _print("\e[32m");
+                _printf("\e[32m");
                 break;
             case color::reset:
-                _print("\e[0m");
+                _printf("\e[0m");
                 break;
         }
     }
@@ -69,14 +69,14 @@ struct printer {
     static void print(cursor_movement c) {
         switch (c) {
             case cursor_movement::up:
-                _print("\033[1A");
+                _printf("\033[1A");
                 break;
         }
     }
 
     template <typename T>
     static void print(const T &a) {
-        _print("0x%x", reinterpret_cast<unsigned long>(&a));
+        _printf("0x%x", reinterpret_cast<unsigned long>(&a));
     }
 
     template<typename First, typename... Rest>
@@ -329,7 +329,7 @@ namespace detail {
 
 test_session test_session::_instance;
 test_session::config test_session::_config;
-printf_t _print;
+printf_t _printf;
 
 } // namespace detail
 
@@ -356,7 +356,7 @@ inline detail::test_session::config config(unsigned argc, const char **argv) {
 }
 
 inline int main(printf_t print_func, unsigned argc = 0, const char **argv = nullptr) {
-    detail::_print = print_func;
+    detail::_printf = print_func;
     return detail::test_session::get().run(config(argc, argv));
 }
 
