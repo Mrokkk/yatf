@@ -12,15 +12,9 @@ extern tests_printer _print;
 
 struct printer {
 
-    enum class cursor_movement {
-        up
-    };
+    enum class cursor_movement { up };
 
-    enum class color {
-        red,
-        green,
-        reset
-    };
+    enum class color { red, green, reset };
 
     static void print(const char *str) {
         _print(str);
@@ -97,9 +91,7 @@ struct test_session final {
 
     struct messages final {
 
-        enum class msg {
-            start_end, run, pass, fail
-        };
+        enum class msg { start_end, run, pass, fail };
 
         static const char *get(msg m) {
             const char *_run_message[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
@@ -231,12 +223,12 @@ private:
         if (_config.color) printer::print(printer::color::reset);
     }
 
-    void print_test_session_start_message() const {
+    void test_session_start_message() const {
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
         printer::print(" Running ", static_cast<int>(_tests_number), " test cases\n");
     }
 
-    void print_test_session_end_message(int failed) const {
+    void test_session_end_message(int failed) const {
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
         printer::print(" Passed ", static_cast<int>(_tests_number - failed), " test cases\n");
         if (failed) {
@@ -245,12 +237,12 @@ private:
         }
     }
 
-    void print_test_start_message(test_case &t) const {
+    void test_start_message(test_case &t) const {
         print_in_color(messages::get(messages::msg::run), printer::color::green);
         printer::print(" ",  t.suite_name, ".", t.test_name, "\n");
     }
 
-    void print_test_result(test_case &t) const {
+    void test_result(test_case &t) const {
         if (t.failed) {
             print_in_color(messages::get(messages::msg::fail), printer::color::red);
             printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
@@ -278,16 +270,16 @@ public:
         unsigned failed = 0;
         unsigned test_cases = 0;
         _config = c;
-        print_test_session_start_message();
+        test_session_start_message();
         for (auto &test : _test_cases) {
-            print_test_start_message(test);
+            test_start_message(test);
             _current_test_case = &test;
             if (test.call())
                 failed++;
-            print_test_result(test);
+            test_result(test);
             test_cases++;
         }
-        print_test_session_end_message(failed);
+        test_session_end_message(failed);
         return failed;
     }
 
@@ -357,10 +349,8 @@ inline int strcmp(const char *string1, const char *string2) {
 inline detail::test_session::config config(unsigned argc, const char **argv) {
     detail::test_session::config c;
     for (unsigned i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "--no-color"))
-            c.color = false;
-        if (!strcmp(argv[i], "--oneliners"))
-            c.oneliners = true;
+        if (!strcmp(argv[i], "--no-color")) c.color = false;
+        else if (!strcmp(argv[i], "--oneliners")) c.oneliners = true;
     }
     return c;
 }
