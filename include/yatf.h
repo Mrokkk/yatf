@@ -13,7 +13,7 @@ extern tests_printer _print;
 struct printer {
 
     enum class cursor_movement {
-        line_beggining
+        up
     };
 
     enum class color {
@@ -74,8 +74,8 @@ struct printer {
 
     static void print(cursor_movement c) {
         switch (c) {
-            case cursor_movement::line_beggining:
-                _print("\033[1000D");
+            case cursor_movement::up:
+                _print("\033[1A");
                 break;
         }
     }
@@ -98,11 +98,11 @@ struct test_session final {
     struct messages final {
 
         enum class msg {
-            run, pass, fail
+            start_end, run, pass, fail
         };
 
         static const char *get(msg m) {
-            const char *_run_message[3] = { "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]" };
+            const char *_run_message[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
             return _run_message[static_cast<int>(m)];
         }
 
@@ -218,17 +218,19 @@ private:
 
 
     void print_test_start_message(test_case &t) const {
-        printer::print(printer::color::green, messages::get(messages::msg::run), printer::color::reset, " ",  t.suite_name, ".", t.test_name, " ");
+        printer::print(printer::color::green, messages::get(messages::msg::run), printer::color::reset, " ",  t.suite_name, ".", t.test_name, "\n");
     }
 
     void print_test_result(test_case &t) const {
         if (t.failed) {
-            printer::print("\n", printer::color::red, messages::get(messages::msg::fail), printer::color::reset, " ");
+            printer::print(printer::color::red, messages::get(messages::msg::fail), printer::color::reset, " ");
             printer::print(t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
         else {
-            printer::print("(", static_cast<int>(t.assertions), " assertions)", printer::cursor_movement::line_beggining);
-            printer::print(printer::color::green, messages::get(messages::msg::pass), printer::color::reset, "\n");
+#if ONELINERS
+            printer::print(printer::cursor_movement::up);
+#endif
+            printer::print(printer::color::green, messages::get(messages::msg::pass), printer::color::reset, " ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
     }
 
@@ -246,7 +248,7 @@ public:
     int run() {
         unsigned failed = 0;
         unsigned test_cases = 0;;
-        _print("\e[32m[========]\e[0m Running %u test cases\n", _tests_number);
+        printer::print(printer::color::green, messages::get(messages::msg::start_end), printer::color::reset, " Running ", static_cast<int>(_tests_number), " test cases\n");
         for (auto &test : _test_cases) {
             print_test_start_message(test);
             _current_test_case = &test;
@@ -254,8 +256,8 @@ public:
             print_test_result(test);
             test_cases++;
         }
-        _print("\e[32m[========]\e[0m Passed %u test cases\n", test_cases - failed);
-        if (failed) _print("\e[31m[========]\e[0m Failed %u test cases\n", failed);
+        printer::print(printer::color::green, messages::get(messages::msg::start_end), printer::color::reset, " Passed ", static_cast<int>(_tests_number - failed), " test cases\n");
+        if (failed) printer::print(printer::color::red, messages::get(messages::msg::start_end), printer::color::reset, " Failed ", static_cast<int>(failed), " test cases\n");
         return failed;
     }
 
@@ -270,20 +272,20 @@ public:
 #define REQUIRE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(cond)) \
-            yatf::detail::printer::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false"); \
+            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
     }
 
 #define REQUIRE_FALSE(cond) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert(!(cond))) \
-            yatf::detail::printer::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true"); \
+            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
     }
 
 #define REQUIRE_EQ(lhs, rhs) \
     { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
-            yatf::detail::printer::print("\nassertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
-            yatf::detail::printer::print(lhs, " != ", rhs); \
+            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
+            yatf::detail::printer::print(lhs, " != ", rhs, "\n"); \
         } \
     }
 
