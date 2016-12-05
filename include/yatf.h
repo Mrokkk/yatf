@@ -220,7 +220,7 @@ private:
     test_case *_current_test_case;
     size_t _tests_number = 0;
     static test_session _instance;
-
+    static config _config;
 
     void print_test_start_message(test_case &t) const {
         printer::print(printer::color::green, messages::get(messages::msg::run), printer::color::reset, " ",  t.suite_name, ".", t.test_name, "\n");
@@ -232,9 +232,8 @@ private:
             printer::print(t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
         else {
-#if ONELINERS
-            printer::print(printer::cursor_movement::up);
-#endif
+            if (_config.oneliners)
+                printer::print(printer::cursor_movement::up);
             printer::print(printer::color::green, messages::get(messages::msg::pass), printer::color::reset, " ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
     }
@@ -250,9 +249,10 @@ public:
         _test_cases.add(t);
     }
 
-    int run(config) {
+    int run(config c) {
         unsigned failed = 0;
         unsigned test_cases = 0;;
+        _config = c;
         printer::print(printer::color::green, messages::get(messages::msg::start_end), printer::color::reset, " Running ", static_cast<int>(_tests_number), " test cases\n");
         for (auto &test : _test_cases) {
             print_test_start_message(test);
@@ -311,15 +311,36 @@ public:
 namespace detail {
 
 test_session test_session::_instance;
+test_session::config test_session::_config;
 tests_printer _print;
 
 } // namespace detail
 
-inline detail::test_session::config config(unsigned, char **) {
-    return {};
+inline int strcmp(const char *string1, const char *string2) {
+    if (string1 == 0 || string2 == 0) return 1;
+    while (1) {
+        if (*string1++ != *string2++)
+            return 1;
+        if (*string1 == '\0' && *string2 == '\0')
+            return 0;
+        if (*string1 == '\0' || *string2 == '\0')
+            return 1;
+    }
+    return 0;
 }
 
-inline int main(tests_printer print_func, unsigned argc = 0, char **argv = nullptr) {
+inline detail::test_session::config config(unsigned argc, const char **argv) {
+    detail::test_session::config c;
+    for (unsigned i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "--no-color"))
+            c.color = false;
+        if (!strcmp(argv[i], "--oneliners"))
+            c.oneliners = true;
+    }
+    return c;
+}
+
+inline int main(tests_printer print_func, unsigned argc = 0, const char **argv = nullptr) {
     detail::_print = print_func;
     return detail::test_session::get().run(config(argc, argv));
 }
