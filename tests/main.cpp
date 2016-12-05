@@ -2,7 +2,7 @@
 #include "../include/yatf.h"
 #include <cstdio>
 
-int main() {
-    return yatf::main(printf);
+int main(int argc, const char *argv[]) {
+    return yatf::main(printf, argc, argv);
 }
 

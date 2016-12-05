@@ -103,6 +103,7 @@ struct test_session final {
     struct config final {
         bool color = true;
         bool oneliners = false;
+        bool fails_only = false;
     };
 
     // Minimal version of inherited_list
@@ -229,6 +230,8 @@ private:
     }
 
     void test_session_end_message(int failed) const {
+        if (_config.fails_only && _config.oneliners)
+            printer::print(printer::cursor_movement::up);
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
         printer::print(" Passed ", static_cast<int>(_tests_number - failed), " test cases\n");
         if (failed) {
@@ -238,6 +241,7 @@ private:
     }
 
     void test_start_message(test_case &t) const {
+        if (_config.fails_only) return;
         print_in_color(messages::get(messages::msg::run), printer::color::green);
         printer::print(" ",  t.suite_name, ".", t.test_name, "\n");
     }
@@ -248,6 +252,7 @@ private:
             printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
         else {
+            if (_config.fails_only) return;
             if (_config.oneliners)
                 printer::print(printer::cursor_movement::up);
             print_in_color(messages::get(messages::msg::pass), printer::color::green);
@@ -348,6 +353,7 @@ inline detail::test_session::config config(unsigned argc, const char **argv) {
     for (unsigned i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--no-color")) c.color = false;
         else if (!strcmp(argv[i], "--oneliners")) c.oneliners = true;
+        else if (!strcmp(argv[i], "--fails-only")) c.fails_only = true;
     }
     return c;
 }
