@@ -268,7 +268,6 @@ public:
 
     int run(config c) {
         unsigned failed = 0;
-        unsigned test_cases = 0;
         _config = c;
         test_session_start_message();
         for (auto &test : _test_cases) {
@@ -277,7 +276,6 @@ public:
             if (test.call())
                 failed++;
             test_result(test);
-            test_cases++;
         }
         test_session_end_message(failed);
         return failed;
