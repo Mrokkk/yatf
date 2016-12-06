@@ -1,7 +1,11 @@
 sudo: required
 
 before_install:
-  - docker pull mrokkk/devel
+    - docker pull mrokkk/devel
+
+install:
+    - sudo apt-get install python-pip
+    - sudo pip install codecov
 
 matrix:
     include:
@@ -32,5 +36,5 @@ language: cpp
 script: ./ci/ci.sh
 
 after_success:
-    - "if [ \"$CODECOV\" ]; then bash <(curl -s https://codecov.io/bash); fi"
+    - codecov
 
