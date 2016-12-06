@@ -3,10 +3,6 @@ sudo: required
 before_install:
     - docker pull mrokkk/devel
 
-install:
-    - sudo apt-get install python-pip
-    - sudo pip install codecov
-
 matrix:
     include:
         - env:
@@ -14,6 +10,9 @@ matrix:
             - JOB=coverage
             - COMPILER=g++
             - CODECOV=1
+          install:
+            - sudo apt-get install python-pip
+            - sudo pip install codecov
           services:
             - docker
 
