@@ -188,7 +188,7 @@ struct test_session final {
             test_session::get().register_test(this);
         }
 
-        bool assert(bool cond) {
+        bool assert_true(bool cond) {
             ++assertions;
             if (!cond) ++failed;
             return cond;
@@ -290,19 +290,23 @@ public:
         return *_current_test_case;
     }
 
+    void current_test_case(test_case *tc) {
+        _current_test_case = tc; // for tests only
+    }
+
 };
 
 } // namespace detail
 
 #define REQUIRE(cond) \
     { \
-        if (!yatf::detail::test_session::get().current_test_case().assert(cond)) \
+        if (!yatf::detail::test_session::get().current_test_case().assert_true(cond)) \
             yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
     }
 
 #define REQUIRE_FALSE(cond) \
     { \
-        if (!yatf::detail::test_session::get().current_test_case().assert(!(cond))) \
+        if (!yatf::detail::test_session::get().current_test_case().assert_true(!(cond))) \
             yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
     }
 
