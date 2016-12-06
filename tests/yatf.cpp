@@ -5,12 +5,14 @@
 #include <cstdarg>
 
 char buffer[1024];
+int position = 0;
 
 int print(const char *fmt, ...) {
     va_list args;
     int i;
     va_start(args, fmt);
-    i = vsprintf(buffer, fmt, args);
+    i = vsprintf((char *)buffer + position, fmt, args);
+    position += i;
     va_end(args);
     return i;
 }
@@ -70,5 +72,20 @@ BOOST_AUTO_TEST_CASE(test_can_fail_and_pass) {
     REQUIRE_FALSE(false);
     BOOST_CHECK(tc.assertions == 3);
     BOOST_CHECK(tc.failed == 1);
+}
+
+void sample_test_case() {
+    REQUIRE_EQ(1, 1);
+    REQUIRE(false);
+    REQUIRE_FALSE(true);
+}
+
+BOOST_AUTO_TEST_CASE(test_can_call) {
+    yatf::detail::test_session::test_case tc{"suite", "name", sample_test_case};
+    yatf::detail::test_session::get().current_test_case(&tc);
+    auto result = tc.call();
+    BOOST_CHECK(result == 2);
+    BOOST_CHECK(tc.assertions == 3);
+    BOOST_CHECK(tc.failed == 2);
 }
 
