@@ -1,45 +1,10 @@
 #include "../include/yatf.h"
-#define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE yatf_tests
 #include <boost/test/unit_test.hpp>
 #include <cstdarg>
 #include <string>
 #include "common.h"
 
-char buffer[1024];
-int position = 0;
-
-int print(const char *fmt, ...) {
-    va_list args;
-    int i;
-    va_start(args, fmt);
-    i = vsprintf((char *)buffer + position, fmt, args);
-    position += i;
-    va_end(args);
-    return i;
-}
-
-std::string get_buffer() {
-    position = 0;
-    return std::string(buffer);
-}
-
-void reset_buffer() {
-    position = 0;
-}
-
-namespace yatf {
-namespace detail {
-
-test_session test_session::_instance;
-printf_t _printf = print;
-
-} // namespace detail
-} // namespace yatf
-
 using namespace yatf::detail;
-
-test_session::test_case dummy_tc{"suite", "test", nullptr};
 
 BOOST_AUTO_TEST_CASE(can_return_message) {
     std::string result = test_session::messages::get(test_session::messages::msg::start_end);

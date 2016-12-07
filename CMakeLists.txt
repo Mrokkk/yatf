@@ -12,7 +12,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z -Wall -Wextra -Werror ${COVERAGE_FLAGS}")
 
-add_executable(${PROJECT_NAME} tests/yatf.cpp tests/tests_list.cpp tests/printer.cpp)
+add_executable(${PROJECT_NAME} tests/main.cpp tests/test_case.cpp tests/tests_list.cpp tests/printer.cpp)
 target_link_libraries(${PROJECT_NAME} -lboost_unit_test_framework)
 
 add_custom_target(tests-run COMMAND ./${PROJECT_NAME} DEPENDS ${PROJECT_NAME})
