@@ -32,9 +32,22 @@ printf_t _printf = print;
 } // namespace detail
 } // namespace yatf
 
+using namespace yatf::detail;
+
+BOOST_AUTO_TEST_CASE(can_put_message) {
+    std::string result = test_session::messages::get(test_session::messages::msg::start_end);
+    BOOST_CHECK_EQUAL(result, "[========]");
+    result = test_session::messages::get(test_session::messages::msg::run);
+    BOOST_CHECK_EQUAL(result, "[  RUN   ]");
+    result = test_session::messages::get(test_session::messages::msg::pass);
+    BOOST_CHECK_EQUAL(result, "[  PASS  ]");
+    result = test_session::messages::get(test_session::messages::msg::fail);
+    BOOST_CHECK_EQUAL(result, "[  FAIL  ]");
+}
+
 BOOST_AUTO_TEST_CASE(test_can_pass) {
-    yatf::detail::test_session::test_case tc{"suite", "name", nullptr};
-    yatf::detail::test_session::get().current_test_case(&tc);
+    test_session::test_case tc{"suite", "name", nullptr};
+    test_session::get().current_test_case(&tc);
     BOOST_CHECK_EQUAL(tc.assertions, 0);
     BOOST_CHECK_EQUAL(tc.failed, 0);
     BOOST_CHECK_EQUAL(get_buffer(), "");
@@ -53,8 +66,8 @@ BOOST_AUTO_TEST_CASE(test_can_pass) {
 }
 
 BOOST_AUTO_TEST_CASE(test_can_fail) {
-    yatf::detail::test_session::test_case tc{"suite", "name", nullptr};
-    yatf::detail::test_session::get().current_test_case(&tc);
+    test_session::test_case tc{"suite", "name", nullptr};
+    test_session::get().current_test_case(&tc);
     BOOST_CHECK_EQUAL(tc.assertions, 0);
     BOOST_CHECK_EQUAL(tc.failed, 0);
     BOOST_CHECK_EQUAL(get_buffer(), "");
@@ -76,8 +89,8 @@ BOOST_AUTO_TEST_CASE(test_can_fail) {
 }
 
 BOOST_AUTO_TEST_CASE(test_can_fail_and_pass) {
-    yatf::detail::test_session::test_case tc{"suite", "name", nullptr};
-    yatf::detail::test_session::get().current_test_case(&tc);
+    test_session::test_case tc{"suite", "name", nullptr};
+    test_session::get().current_test_case(&tc);
     BOOST_CHECK_EQUAL(tc.assertions, 0);
     BOOST_CHECK_EQUAL(tc.failed, 0);
     REQUIRE_EQ(0, 0);
@@ -98,8 +111,8 @@ void sample_test_case() {
 }
 
 BOOST_AUTO_TEST_CASE(test_can_call) {
-    yatf::detail::test_session::test_case tc{"suite", "name", sample_test_case};
-    yatf::detail::test_session::get().current_test_case(&tc);
+    test_session::test_case tc{"suite", "name", sample_test_case};
+    test_session::get().current_test_case(&tc);
     auto result = tc.call();
     BOOST_CHECK_EQUAL(result, 2);
     BOOST_CHECK_EQUAL(tc.assertions, 3);
