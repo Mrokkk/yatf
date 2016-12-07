@@ -1,5 +1,4 @@
 #include "../include/yatf.h"
-#define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 #include <ctime>
 #include <vector>
@@ -43,6 +42,8 @@ void test_adding(test_session::tests_list<helper> &head, int s) {
 
 } // namespace anon
 
+BOOST_AUTO_TEST_SUITE(tests_list_suite)
+
 BOOST_AUTO_TEST_CASE(can_create_empty) {
     helper h(2);
     BOOST_CHECK_EQUAL(h.next(), (void *)nullptr);
@@ -64,4 +65,6 @@ BOOST_AUTO_TEST_CASE(can_use_iterator) {
         BOOST_CHECK_EQUAL(it.first->a, (*it.second).a);
     }
 }
+
+BOOST_AUTO_TEST_SUITE_END()
 

@@ -6,16 +6,7 @@
 
 using namespace yatf::detail;
 
-BOOST_AUTO_TEST_CASE(can_return_message) {
-    std::string result = test_session::messages::get(test_session::messages::msg::start_end);
-    BOOST_CHECK_EQUAL(result, "[========]");
-    result = test_session::messages::get(test_session::messages::msg::run);
-    BOOST_CHECK_EQUAL(result, "[  RUN   ]");
-    result = test_session::messages::get(test_session::messages::msg::pass);
-    BOOST_CHECK_EQUAL(result, "[  PASS  ]");
-    result = test_session::messages::get(test_session::messages::msg::fail);
-    BOOST_CHECK_EQUAL(result, "[  FAIL  ]");
-}
+BOOST_AUTO_TEST_SUITE(test_case_suite)
 
 BOOST_FIXTURE_TEST_CASE(test_can_pass, yatf_fixture) {
     test_session::test_case tc{"suite", "name", nullptr};
@@ -90,4 +81,6 @@ BOOST_FIXTURE_TEST_CASE(test_can_call, yatf_fixture) {
     BOOST_CHECK_EQUAL(tc.assertions, 3);
     BOOST_CHECK_EQUAL(tc.failed, 2);
 }
+
+BOOST_AUTO_TEST_SUITE_END()
 

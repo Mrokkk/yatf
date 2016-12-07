@@ -7,6 +7,8 @@
 
 using namespace yatf::detail;
 
+BOOST_AUTO_TEST_SUITE(printer_suite)
+
 BOOST_FIXTURE_TEST_CASE(can_print_char, yatf_fixture) {
     for (char i = 1; i < 127; i++) {
         printer::print(i);
@@ -82,4 +84,6 @@ BOOST_FIXTURE_TEST_CASE(can_print_cursor_movement, yatf_fixture) {
     printer::print(printer::cursor_movement::up);
     BOOST_CHECK_EQUAL(get_buffer(), "\e[1A");
 }
+
+BOOST_AUTO_TEST_SUITE_END()
 
