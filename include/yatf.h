@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+struct yatf_fixture;
+
 namespace yatf {
 
 using printf_t = int (*)(const char *, ...);
@@ -217,6 +219,7 @@ private:
     size_t _tests_number = 0;
     config _config;
     static test_session _instance;
+    friend yatf_fixture;
 
     void print_in_color(const char *str, printer::color color) const {
         if (_config.color) printer::print(color);

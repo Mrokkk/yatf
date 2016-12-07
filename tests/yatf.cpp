@@ -34,7 +34,14 @@ printf_t _printf = print;
 
 using namespace yatf::detail;
 
-BOOST_AUTO_TEST_CASE(can_put_message) {
+test_session::test_case dummy_tc{"suite", "test", nullptr};
+
+struct yatf_fixture {
+    yatf_fixture() { position = 0; test_session::_instance._test_cases = dummy_tc; }
+    ~yatf_fixture() { position = 0; }
+};
+
+BOOST_AUTO_TEST_CASE(can_return_message) {
     std::string result = test_session::messages::get(test_session::messages::msg::start_end);
     BOOST_CHECK_EQUAL(result, "[========]");
     result = test_session::messages::get(test_session::messages::msg::run);
@@ -45,7 +52,7 @@ BOOST_AUTO_TEST_CASE(can_put_message) {
     BOOST_CHECK_EQUAL(result, "[  FAIL  ]");
 }
 
-BOOST_AUTO_TEST_CASE(test_can_pass) {
+BOOST_FIXTURE_TEST_CASE(test_can_pass, yatf_fixture) {
     test_session::test_case tc{"suite", "name", nullptr};
     test_session::get().current_test_case(&tc);
     BOOST_CHECK_EQUAL(tc.assertions, 0);
@@ -65,7 +72,7 @@ BOOST_AUTO_TEST_CASE(test_can_pass) {
     BOOST_CHECK_EQUAL(get_buffer(), "");
 }
 
-BOOST_AUTO_TEST_CASE(test_can_fail) {
+BOOST_FIXTURE_TEST_CASE(test_can_fail, yatf_fixture) {
     test_session::test_case tc{"suite", "name", nullptr};
     test_session::get().current_test_case(&tc);
     BOOST_CHECK_EQUAL(tc.assertions, 0);
@@ -88,7 +95,7 @@ BOOST_AUTO_TEST_CASE(test_can_fail) {
     BOOST_CHECK_EQUAL(get_buffer(), comp);
 }
 
-BOOST_AUTO_TEST_CASE(test_can_fail_and_pass) {
+BOOST_FIXTURE_TEST_CASE(test_can_fail_and_pass, yatf_fixture) {
     test_session::test_case tc{"suite", "name", nullptr};
     test_session::get().current_test_case(&tc);
     BOOST_CHECK_EQUAL(tc.assertions, 0);
@@ -110,7 +117,7 @@ void sample_test_case() {
     REQUIRE_FALSE(true);
 }
 
-BOOST_AUTO_TEST_CASE(test_can_call) {
+BOOST_FIXTURE_TEST_CASE(test_can_call, yatf_fixture) {
     test_session::test_case tc{"suite", "name", sample_test_case};
     test_session::get().current_test_case(&tc);
     auto result = tc.call();
