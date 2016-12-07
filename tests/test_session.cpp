@@ -6,16 +6,6 @@
 #include <memory>
 #include "common.h"
 
-int print(const char *fmt, ...);
-
-namespace yatf {
-namespace detail {
-
-extern printf_t _printf;
-
-} // namespace detail
-} // namespace yatf
-
 using namespace yatf::detail;
 
 BOOST_AUTO_TEST_SUITE(test_session_suite)

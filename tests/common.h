@@ -13,3 +13,13 @@ struct yatf_fixture {
     ~yatf_fixture() { reset_buffer(); }
 };
 
+namespace yatf {
+namespace detail {
+
+extern printf_t _printf;
+
+} // namespace detail
+} // namespace yatf
+
+int print(const char *fmt, ...);
+
