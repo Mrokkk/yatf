@@ -13,8 +13,7 @@ cores=$(nproc)
 case "$JOB" in
     "valgrind")
         cmake ..
-        make -j$cores
-        valgrind ./yatf ;;
+        make tests-valgrind -j$cores ;;
     "coverage")
         cmake -DCOVERAGE=ON ..
         make tests-cov -j$cores ;;

@@ -42,3 +42,8 @@ if(COVERAGE)
     endif()
 endif()
 
+add_custom_target(tests-valgrind
+    DEPENDS ${PROJECT_NAME}
+    COMMAND valgrind --error-exitcode=1 ./${PROJECT_NAME}
+    COMMENT "Running ${PROJECT_NAME} tests with valgrind")
+
