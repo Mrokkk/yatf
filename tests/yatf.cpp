@@ -4,6 +4,7 @@
 #include <boost/test/unit_test.hpp>
 #include <cstdarg>
 #include <string>
+#include "common.h"
 
 char buffer[1024];
 int position = 0;
@@ -23,6 +24,10 @@ std::string get_buffer() {
     return std::string(buffer);
 }
 
+void reset_buffer() {
+    position = 0;
+}
+
 namespace yatf {
 namespace detail {
 
@@ -35,11 +40,6 @@ printf_t _printf = print;
 using namespace yatf::detail;
 
 test_session::test_case dummy_tc{"suite", "test", nullptr};
-
-struct yatf_fixture {
-    yatf_fixture() { position = 0; test_session::_instance._test_cases = dummy_tc; }
-    ~yatf_fixture() { position = 0; }
-};
 
 BOOST_AUTO_TEST_CASE(can_return_message) {
     std::string result = test_session::messages::get(test_session::messages::msg::start_end);
