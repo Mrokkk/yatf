@@ -185,7 +185,7 @@ struct test_session final {
         unsigned assertions = 0;
         unsigned failed = 0;
 
-        test_case(const char *suite, const char *test, void (*func)())
+        explicit test_case(const char *suite, const char *test, void (*func)())
                 : func(func), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
         }

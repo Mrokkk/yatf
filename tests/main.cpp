@@ -6,7 +6,7 @@
 #include <string>
 #include "common.h"
 
-char buffer[1024];
+char buffer[4096];
 int position = 0;
 
 int print(const char *fmt, ...) {
@@ -25,6 +25,7 @@ std::string get_buffer() {
 }
 
 void reset_buffer() {
+    buffer[0] = 0;
     position = 0;
 }
 
