@@ -27,12 +27,15 @@ void passing_test_case() {
     REQUIRE_EQ(1, 1);
     REQUIRE(true);
     REQUIRE_FALSE(false);
+    REQUIRE_EQ(0, 0);
 }
 
 void failing_test_case() {
     REQUIRE_EQ(1, 1);
     REQUIRE(true);
+    REQUIRE(false);
     REQUIRE_FALSE(true);
+    REQUIRE_EQ(1, 0);
 }
 
 int stubbed_printf(const char *, ...) {
