@@ -48,9 +48,9 @@ BOOST_FIXTURE_TEST_CASE(can_run_tests, yatf_fixture) {
     srand ( time(NULL) );
     std::vector<std::unique_ptr<test_session::test_case>> tests;
     yatf::config c{false, false, false};
-    auto failed = 0;
+    auto failed = 0u;
     _printf = stubbed_printf;
-    for (int i = 0; i < 1024; ++i) {
+    for (auto i = 0u; i < 1024; ++i) {
         bool pass = std::rand() % 2 == 1;
         if (pass) tests.push_back(std::make_unique<test_session::test_case>("t", "t", passing_test_case));
         else {

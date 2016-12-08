@@ -12,6 +12,9 @@ struct config final {
     bool color = true;
     bool oneliners = false;
     bool fails_only = false;
+    constexpr config() {}
+    explicit config(bool color, bool oneliners, bool fails_only)
+        : color(color), oneliners(oneliners), fails_only(fails_only) {}
 };
 
 namespace detail {
@@ -164,11 +167,11 @@ struct test_session final {
             return _next == this ? nullptr : _next;
         }
 
-        auto begin() {
+        iterator begin() {
             return iterator(_next);
         }
 
-        auto end() {
+        iterator end() {
             return iterator(reinterpret_cast<Type *>(this));
         }
 

@@ -2,6 +2,7 @@
 
 #include "../include/yatf.h"
 #include <string>
+#include <memory>
 
 extern yatf::detail::test_session::test_case dummy_tc;
 
@@ -22,4 +23,17 @@ extern printf_t _printf;
 } // namespace yatf
 
 int print(const char *fmt, ...);
+
+#if (__cplusplus < 201402L)
+
+namespace std {
+
+template<typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+} // namespace std
+
+#endif
 
