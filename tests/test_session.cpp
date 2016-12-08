@@ -45,19 +45,30 @@ int stubbed_printf(const char *, ...) {
 } // namespace anon
 
 BOOST_FIXTURE_TEST_CASE(can_run_tests, yatf_fixture) {
-    srand ( time(NULL) );
+    srand(time(NULL));
     std::vector<std::unique_ptr<test_session::test_case>> tests;
-    yatf::config c{false, false, false};
+    std::vector<yatf::config> configs{
+            yatf::config{false, false, false},
+            yatf::config{true, false, false},
+            yatf::config{true, true, false},
+            yatf::config{false, true, false},
+            yatf::config{false, true, true},
+            yatf::config{false, false, true},
+            yatf::config{true, false, true},
+            yatf::config{true, true, true}
+    };
     auto failed = 0u;
     _printf = stubbed_printf;
-    for (auto i = 0u; i < 1024; ++i) {
-        bool pass = std::rand() % 2 == 1;
-        if (pass) tests.push_back(std::make_unique<test_session::test_case>("t", "t", passing_test_case));
-        else {
-            failed++;
-            tests.push_back(std::make_unique<test_session::test_case>("t", "t", failing_test_case));
+    for (auto c = configs.begin(); c != configs.end(); ++c) {
+        for (auto i = 0u; i < 1024; ++i) {
+            bool pass = std::rand() % 2 == 1;
+            if (pass) tests.push_back(std::make_unique<test_session::test_case>("t", "t", passing_test_case));
+            else {
+                failed++;
+                tests.push_back(std::make_unique<test_session::test_case>("t", "t", failing_test_case));
+            }
+            BOOST_CHECK_EQUAL(failed, test_session::get().run(*c));
         }
-        BOOST_CHECK_EQUAL(failed, test_session::get().run(c));
     }
     _printf = print;
 }
