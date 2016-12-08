@@ -18,15 +18,32 @@ matrix:
 
         - env:
             - IMAGE=mrokkk/devel
-            - JOB=coverage
-            - COMPILER=clang++
+            - JOB=valgrind
+            - COMPILER=g++
           services:
             - docker
 
         - env:
             - IMAGE=mrokkk/devel
-            - JOB=valgrind
-            - COMPILER=g++
+            - JOB=coverage
+            - COMPILER=clang++
+            - CPP_STANDARD=c++11
+          services:
+            - docker
+
+        - env:
+            - IMAGE=mrokkk/devel
+            - JOB=coverage
+            - COMPILER=clang++
+            - CPP_STANDARD=c++14
+          services:
+            - docker
+
+        - env:
+            - IMAGE=mrokkk/devel
+            - JOB=coverage
+            - COMPILER=clang++
+            - CPP_STANDARD=c++1z
           services:
             - docker
 

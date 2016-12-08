@@ -1,6 +1,14 @@
 project(yatf CXX)
 cmake_minimum_required(VERSION 3.0)
 
+if(NOT CPP_STD)
+    set(CPP_STD c++1z)
+endif()
+message(STATUS "[CPP_STD] C++ standard: ${CPP_STD}")
+
+option(COVERAGE "Generate coverage reports" OFF)
+message(STATUS "[COVERAGE] Generate coverage reports: ${COVERAGE}")
+
 if(COVERAGE)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         set(COVERAGE_FLAGS "-O0 -fprofile-instr-generate -fcoverage-mapping")
@@ -10,7 +18,7 @@ if(COVERAGE)
     endif()
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z -Wall -Wextra -Werror ${COVERAGE_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=${CPP_STD} -Wall -Wextra -Werror ${COVERAGE_FLAGS}")
 
 add_executable(${PROJECT_NAME} tests/main.cpp tests/test_session.cpp tests/test_case.cpp tests/tests_list.cpp tests/printer.cpp)
 target_link_libraries(${PROJECT_NAME} -lboost_unit_test_framework)
