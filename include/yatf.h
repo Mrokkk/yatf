@@ -179,7 +179,7 @@ struct test_session final {
 
     class test_case final : public tests_list<test_case> {
 
-        void (*func)();
+        void (*test_case_func)();
 
     public:
 
@@ -187,10 +187,19 @@ struct test_session final {
         const char *test_name;
         unsigned assertions = 0;
         unsigned failed = 0;
+        void (*runner)(void (*)());
 
         explicit test_case(const char *suite, const char *test, void (*func)())
-                : func(func), suite_name(suite), test_name(test) {
+                : test_case_func(func), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
+            runner = [](void (*f)()){ f(); };
+        }
+
+        template <class Fixture>
+        explicit test_case(const char *suite, const char *test, void (*func)(), Fixture *)
+                : test_case_func(func), suite_name(suite), test_name(test) {
+            test_session::get().register_test(this);
+            runner = [](void (*f)()){ Fixture fix; f(); };
         }
 
         bool assert_true(bool cond) {
@@ -209,7 +218,7 @@ struct test_session final {
         }
 
         int call() {
-            func();
+            runner(test_case_func);
             return failed;
         }
 
@@ -334,6 +343,11 @@ public:
 #define TEST(suite, name) \
     static void suite##_##name(); \
     yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##_##name}; \
+    static void suite##_##name()
+
+#define TEST_F(suite, name, f) \
+    static void suite##_##name(); \
+    yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##_##name, (f *)(nullptr)}; \
     static void suite##_##name()
 
 #ifdef YATF_MAIN
