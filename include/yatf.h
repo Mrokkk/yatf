@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <type_traits>
 
 struct yatf_fixture;
 
@@ -31,31 +32,16 @@ struct printer {
         _printf(str);
     }
 
+    static void print(char *str) {
+        _printf(str);
+    }
+
     static void print(char c) {
         _printf("%c", c);
     }
 
-    static void print(unsigned char c) {
-        _printf("0x%x", c);
-    }
-
-    static void print(short a) {
-        _printf("%d", a);
-    }
-
-    static void print(unsigned short a) {
-        _printf("0x%x", a);
-    }
-
-    static void print(int a) {
-        _printf("%d", a);
-    }
-
-    static void print(unsigned int a) {
-        _printf("0x%x", a);
-    }
-
-    static void print(void *a) {
+    template <typename T>
+    static typename std::enable_if<std::is_pointer<T>::value>::type print(T a) {
         _printf("0x%x", reinterpret_cast<unsigned long>(a));
     }
 
@@ -85,15 +71,20 @@ struct printer {
         }
     }
 
-    template <typename T>
-    static void print(const T &a) {
-        _printf("0x%x", reinterpret_cast<unsigned long>(&a));
-    }
-
     template<typename First, typename... Rest>
     static void print(const First &first, const Rest &... rest) {
         print(first);
         print(rest...);
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_signed<T>::value>::type print(T a) {
+        _printf("%d", a);
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_unsigned<T>::value>::type print(T a) {
+        _printf("%d", a);
     }
 
 };
