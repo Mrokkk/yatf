@@ -11,9 +11,17 @@ BOOST_AUTO_TEST_SUITE(test_case_suite)
 BOOST_FIXTURE_TEST_CASE(assert_works, yatf_fixture) {
     test_session::test_case tc{"suite", "name", nullptr};
     BOOST_CHECK(tc.assert_eq(1, 1));
+    BOOST_CHECK_EQUAL(tc.failed, 0);
+    BOOST_CHECK_EQUAL(tc.assertions, 1);
     BOOST_CHECK(tc.assert_true(true));
+    BOOST_CHECK_EQUAL(tc.failed, 0);
+    BOOST_CHECK_EQUAL(tc.assertions, 2);
     BOOST_CHECK(!tc.assert_eq(1, 0));
+    BOOST_CHECK_EQUAL(tc.failed, 1);
+    BOOST_CHECK_EQUAL(tc.assertions, 3);
     BOOST_CHECK(!tc.assert_true(false));
+    BOOST_CHECK_EQUAL(tc.failed, 2);
+    BOOST_CHECK_EQUAL(tc.assertions, 4);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_can_pass, yatf_fixture) {
@@ -90,6 +98,23 @@ BOOST_FIXTURE_TEST_CASE(test_can_call, yatf_fixture) {
     BOOST_CHECK_EQUAL(result, 2);
     BOOST_CHECK_EQUAL(tc.assertions, 3);
     BOOST_CHECK_EQUAL(tc.failed, 2);
+}
+
+bool fixture_constructor_indicator = false;
+bool fixture_destructor_indicator = false;
+
+struct fixture {
+    fixture() { fixture_constructor_indicator = true; }
+    ~fixture() { fixture_destructor_indicator = true; }
+};
+
+BOOST_FIXTURE_TEST_CASE(fixture_works, yatf_fixture) {
+    test_session::test_case tc{"suite", "name", sample_test_case, (fixture *)0};
+    BOOST_CHECK_EQUAL(std::string{tc.suite_name}, "suite");
+    BOOST_CHECK_EQUAL(std::string{tc.test_name}, "name");
+    tc.call();
+    BOOST_CHECK_EQUAL(fixture_destructor_indicator, true);
+    BOOST_CHECK_EQUAL(fixture_constructor_indicator, true);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
