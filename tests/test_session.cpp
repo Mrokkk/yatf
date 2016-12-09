@@ -60,7 +60,7 @@ BOOST_FIXTURE_TEST_CASE(can_run_tests, yatf_fixture) {
     auto failed = 0u;
     _printf = stubbed_printf;
     for (auto c = configs.begin(); c != configs.end(); ++c) {
-        for (auto i = 0u; i < 1024; ++i) {
+        for (auto i = 0u; i < 512; ++i) {
             bool pass = std::rand() % 2 == 1;
             if (pass) tests.push_back(std::make_unique<test_session::test_case>("t", "t", passing_test_case));
             else {

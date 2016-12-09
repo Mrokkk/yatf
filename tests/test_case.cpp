@@ -8,9 +8,19 @@ using namespace yatf::detail;
 
 BOOST_AUTO_TEST_SUITE(test_case_suite)
 
-BOOST_FIXTURE_TEST_CASE(test_can_pass, yatf_fixture) {
+BOOST_FIXTURE_TEST_CASE(assert_works, yatf_fixture) {
     test_session::test_case tc{"suite", "name", nullptr};
+    BOOST_CHECK(tc.assert_eq(1, 1));
+    BOOST_CHECK(tc.assert_true(true));
+    BOOST_CHECK(!tc.assert_eq(1, 0));
+    BOOST_CHECK(!tc.assert_true(false));
+}
+
+BOOST_FIXTURE_TEST_CASE(test_can_pass, yatf_fixture) {
+    test_session::test_case tc{"suite_name", "test_name", nullptr};
     test_session::get().current_test_case(&tc);
+    BOOST_CHECK_EQUAL(std::string{tc.suite_name}, "suite_name");
+    BOOST_CHECK_EQUAL(std::string{tc.test_name}, "test_name");
     BOOST_CHECK_EQUAL(tc.assertions, 0);
     BOOST_CHECK_EQUAL(tc.failed, 0);
     BOOST_CHECK_EQUAL(get_buffer(), "");
