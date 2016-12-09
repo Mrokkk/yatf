@@ -28,11 +28,22 @@ struct printer {
 
     enum class color { red, green, reset };
 
-    static void print(const char *str) {
-        _printf(str);
+    template <typename T>
+    static typename std::enable_if<std::is_signed<T>::value>::type print(T a) {
+        _printf("%d", a);
     }
 
-    static void print(char *str) {
+    template <typename T>
+    static typename std::enable_if<std::is_unsigned<T>::value>::type print(T a) {
+        _printf("%u", a);
+    }
+
+    template <typename T>
+    static typename std::enable_if<
+        std::is_same<T, char *>::value ||
+        std::is_same<T, const char *>::value
+    >::type
+    print(T str) {
         _printf(str);
     }
 
@@ -41,7 +52,11 @@ struct printer {
     }
 
     template <typename T>
-    static typename std::enable_if<std::is_pointer<T>::value>::type print(T a) {
+    static typename std::enable_if<
+        std::is_pointer<T>::value &&
+        !std::is_same<T, char *>::value &&
+        !std::is_same<T, const char *>::value
+    >::type print(T a) {
         _printf("0x%x", reinterpret_cast<unsigned long>(a));
     }
 
@@ -75,16 +90,6 @@ struct printer {
     static void print(const First &first, const Rest &... rest) {
         print(first);
         print(rest...);
-    }
-
-    template <typename T>
-    static typename std::enable_if<std::is_signed<T>::value>::type print(T a) {
-        _printf("%d", a);
-    }
-
-    template <typename T>
-    static typename std::enable_if<std::is_unsigned<T>::value>::type print(T a) {
-        _printf("%d", a);
     }
 
 };
@@ -170,7 +175,8 @@ struct test_session final {
 
     class test_case final : public tests_list<test_case> {
 
-        void (*test_case_func)();
+        void (*_test_case_func)();
+        void (*_runner)(void (*)());
 
     public:
 
@@ -178,19 +184,18 @@ struct test_session final {
         const char *test_name;
         unsigned assertions = 0;
         unsigned failed = 0;
-        void (*runner)(void (*)());
 
         explicit test_case(const char *suite, const char *test, void (*func)())
-                : test_case_func(func), suite_name(suite), test_name(test) {
+                : _test_case_func(func), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
-            runner = [](void (*f)()){ f(); };
+            _runner = [](void (*f)()){ f(); };
         }
 
         template <class Fixture>
         explicit test_case(const char *suite, const char *test, void (*func)(), Fixture *)
-                : test_case_func(func), suite_name(suite), test_name(test) {
+                : _test_case_func(func), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
-            runner = [](void (*f)()){ Fixture fix; f(); };
+            _runner = [](void (*f)()){ Fixture fix; f(); };
         }
 
         bool assert_true(bool cond) {
@@ -209,7 +214,7 @@ struct test_session final {
         }
 
         int call() {
-            runner(test_case_func);
+            _runner(_test_case_func);
             return failed;
         }
 
@@ -278,7 +283,7 @@ public:
     }
 
     int run(config c) {
-        unsigned failed = 0;
+        auto failed = 0u;
         _config = c;
         test_session_start_message();
         for (auto &test : _test_cases) {
@@ -323,10 +328,6 @@ public:
             yatf::detail::printer::print(lhs, " != ", rhs, "\n"); \
         } \
     }
-
-// gtest compatible
-#define EXPECT_EQ(lhs, rhs) REQUIRE_EQ(lhs, rhs)
-#define EXPECT_TRUE(cond) REQUIRE(cond)
 
 #define YATF_UNIQUE_NAME(name) \
     name##__LINE__
