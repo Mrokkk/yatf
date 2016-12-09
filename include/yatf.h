@@ -340,15 +340,18 @@ public:
 #define YATF_UNIQUE_NAME(name) \
     name##__LINE__
 
-#define TEST(suite, name) \
+#define YATF_TEST(suite, name) \
     static void suite##_##name(); \
     yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##_##name}; \
     static void suite##_##name()
 
-#define TEST_F(suite, name, f) \
+#define YATF_TEST_FIXTURE(suite, name, f) \
     static void suite##_##name(); \
     yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##_##name, (f *)(nullptr)}; \
     static void suite##_##name()
+
+#define GET_4TH(_1, _2, _3, NAME, ...) NAME
+#define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
 
 #ifdef YATF_MAIN
 
