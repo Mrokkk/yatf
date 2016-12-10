@@ -33,7 +33,7 @@ if(COVERAGE)
     add_dependencies(tests-run clean-coverage)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         add_custom_target(tests-cov
-            DEPENDS tests-run
+            DEPENDS ${PROJECT_NAME}
             COMMAND LLVM_PROFILE_FILE=tests.profdata ./${PROJECT_NAME}
             COMMAND llvm-profdata merge -instr tests.profdata -o merged.profdata
             COMMAND llvm-cov report ./${PROJECT_NAME} -instr-profile=merged.profdata
