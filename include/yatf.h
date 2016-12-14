@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <type_traits>
 
 struct yatf_fixture;
@@ -213,7 +212,7 @@ struct test_session final {
             return cond;
         }
 
-        int call() {
+        unsigned call() {
             _runner(_test_case_func);
             return failed;
         }
@@ -224,7 +223,7 @@ private:
 
     tests_list<test_case> _test_cases;
     test_case *_current_test_case;
-    size_t _tests_number = 0;
+    unsigned _tests_number = 0;
     config _config;
     static test_session _instance;
     friend yatf_fixture;
