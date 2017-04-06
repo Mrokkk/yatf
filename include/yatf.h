@@ -314,7 +314,10 @@ inline int compare_strings(const char *s1, const char *s2) {
 
 template <>
 inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs) {
-    return compare_strings(lhs, rhs) == 0;
+    ++assertions;
+    auto cond = compare_strings(lhs, rhs) == 0;
+    if (!cond) failed++;
+    return cond;
 }
 
 } // namespace detail
