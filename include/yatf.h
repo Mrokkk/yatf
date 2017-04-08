@@ -367,25 +367,12 @@ printf_t _printf;
 
 } // namespace detail
 
-inline int strcmp(const char *string1, const char *string2) {
-    if (string1 == 0 || string2 == 0) return 1;
-    while (1) {
-        if (*string1++ != *string2++)
-            return 1;
-        if (*string1 == '\0' && *string2 == '\0')
-            return 0;
-        if (*string1 == '\0' || *string2 == '\0')
-            return 1;
-    }
-    return 0;
-}
-
 inline config read_config(unsigned argc, const char **argv) {
     config c;
     for (unsigned i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "--no-color")) c.color = false;
-        else if (!strcmp(argv[i], "--oneliners")) c.oneliners = true;
-        else if (!strcmp(argv[i], "--fails-only")) c.fails_only = true;
+        if (!detail::compare_strings(argv[i], "--no-color")) c.color = false;
+        else if (!detail::compare_strings(argv[i], "--oneliners")) c.oneliners = true;
+        else if (!detail::compare_strings(argv[i], "--fails-only")) c.fails_only = true;
     }
     return c;
 }
