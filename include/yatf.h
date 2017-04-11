@@ -390,14 +390,14 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
     name##__LINE__
 
 #define YATF_TEST(suite, name) \
-    static void suite##_##name(); \
-    yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##_##name}; \
-    static void suite##_##name()
+    static void suite##__##name(); \
+    yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##__##name}; \
+    static void suite##__##name()
 
 #define YATF_TEST_FIXTURE(suite, name, f) \
-    static void suite##_##name(); \
-    yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##_##name, (f *)(nullptr)}; \
-    static void suite##_##name()
+    static void suite##__##name(); \
+    yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##__##name, (f *)(nullptr)}; \
+    static void suite##__##name()
 
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
 #define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
