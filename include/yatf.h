@@ -21,6 +21,12 @@ namespace detail {
 
 extern printf_t _printf;
 
+inline int compare_strings(const char *s1, const char *s2) {
+    while(*s1 && (*s1 == *s2))
+        s1++, s2++;
+    return *(const unsigned char*)s1 - *(const unsigned char*)s2;
+}
+
 struct printer {
 
     enum class cursor_movement { up };
@@ -270,6 +276,40 @@ private:
         }
     }
 
+    char *find(char *str, char c) const {
+        while (*str) {
+            if (*str++ == c) {
+                return str;
+            }
+        }
+        return nullptr;
+    }
+
+    void copy_string(const char *src, char *dest) {
+        while (*src) {
+            *dest++ = *src++;
+        }
+        *dest = 0;
+    }
+
+    int call_one_test(const char *test_name) {
+        char suite_name[512];
+        copy_string(test_name, suite_name);
+        auto dot_position = find(suite_name, '.');
+        if (dot_position == nullptr) {
+            return -1;
+        }
+        *dot_position = 0;
+        auto case_name = dot_position + 1;
+        for (auto &test : _test_cases) {
+            if (compare_strings(test.test_name, case_name) == 0 &&
+                compare_strings(test.suite_name, suite_name) == 0) {
+                return test.call();
+            }
+        }
+        return 0;
+    }
+
 public:
 
     static test_session &get() {
@@ -281,7 +321,10 @@ public:
         _test_cases.add(t);
     }
 
-    int run(config c) {
+    int run(config c, const char *test_name = nullptr) {
+        if (test_name) {
+            return call_one_test(test_name);
+        }
         auto failed = 0u;
         _config = c;
         test_session_start_message();
@@ -305,12 +348,6 @@ public:
     }
 
 };
-
-inline int compare_strings(const char *s1, const char *s2) {
-    while(*s1 && (*s1 == *s2))
-        s1++, s2++;
-    return *(const unsigned char*)s1 - *(const unsigned char*)s2;
-}
 
 template <>
 inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs) {
@@ -385,6 +422,14 @@ inline int main(printf_t print_func, unsigned argc = 0, const char **argv = null
 inline int main(printf_t print_func, config &c) {
     detail::_printf = print_func;
     return detail::test_session::get().run(c);
+}
+
+inline int run_one(printf_t print_func, const char *test_name, config &c) {
+    if (test_name == nullptr) {
+        return -1;
+    }
+    detail::_printf = print_func;
+    return detail::test_session::get().run(c, test_name);
 }
 
 #endif
