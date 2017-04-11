@@ -278,9 +278,10 @@ private:
 
     char *find(char *str, char c) const {
         while (*str) {
-            if (*str++ == c) {
+            if (*str == c) {
                 return str;
             }
+            str++;
         }
         return nullptr;
     }
@@ -293,7 +294,7 @@ private:
     }
 
     int call_one_test(const char *test_name) {
-        char suite_name[512];
+        char suite_name[512]; // FIXME
         copy_string(test_name, suite_name);
         auto dot_position = find(suite_name, '.');
         if (dot_position == nullptr) {
@@ -304,10 +305,16 @@ private:
         for (auto &test : _test_cases) {
             if (compare_strings(test.test_name, case_name) == 0 &&
                 compare_strings(test.suite_name, suite_name) == 0) {
-                return test.call();
+                test_start_message(test);
+                _current_test_case = &test;
+                auto result = test.call();
+                test_result(test);
+                return result;
             }
         }
-        return 0;
+        print_in_color(messages::get(messages::msg::fail), printer::color::red);
+        printer::print(" error because of bad test name\n");
+        return -1;
     }
 
 public:
@@ -322,11 +329,11 @@ public:
     }
 
     int run(config c, const char *test_name = nullptr) {
+        _config = c;
         if (test_name) {
             return call_one_test(test_name);
         }
         auto failed = 0u;
-        _config = c;
         test_session_start_message();
         for (auto &test : _test_cases) {
             test_start_message(test);
