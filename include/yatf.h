@@ -367,24 +367,24 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 } // namespace detail
 
 #define REQUIRE(cond) \
-    { \
+    do { \
         if (!yatf::detail::test_session::get().current_test_case().assert_true(cond)) \
             yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
-    }
+    } while (0)
 
 #define REQUIRE_FALSE(cond) \
-    { \
+    do { \
         if (!yatf::detail::test_session::get().current_test_case().assert_true(!(cond))) \
             yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
-    }
+    } while (0)
 
 #define REQUIRE_EQ(lhs, rhs) \
-    { \
+    do { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
             yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
             yatf::detail::printer::print(lhs, " != ", rhs, "\n"); \
         } \
-    }
+    } while (0)
 
 #define YATF_UNIQUE_NAME(name) \
     name##__LINE__
