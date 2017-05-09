@@ -1,4 +1,4 @@
-#include "../include/yatf.h"
+#include "../include/yatf.hpp"
 #include <boost/test/unit_test.hpp>
 #include <ctime>
 #include <vector>

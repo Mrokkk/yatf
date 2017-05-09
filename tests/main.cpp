@@ -1,10 +1,10 @@
-#include "../include/yatf.h"
+#include "../include/yatf.hpp"
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE yatf_tests
 #include <boost/test/unit_test.hpp>
 #include <cstdarg>
 #include <string>
-#include "common.h"
+#include "common.hpp"
 
 char buffer[4096];
 int position = 0;

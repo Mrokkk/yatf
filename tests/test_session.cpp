@@ -1,10 +1,10 @@
-#include "../include/yatf.h"
+#include "../include/yatf.hpp"
 #include <boost/test/unit_test.hpp>
 #include <ctime>
 #include <utility>
 #include <vector>
 #include <memory>
-#include "common.h"
+#include "common.hpp"
 
 using namespace yatf::detail;
 

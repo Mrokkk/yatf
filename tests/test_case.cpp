@@ -1,8 +1,8 @@
-#include "../include/yatf.h"
+#include "../include/yatf.hpp"
 #include <boost/test/unit_test.hpp>
 #include <cstdarg>
 #include <string>
-#include "common.h"
+#include "common.hpp"
 
 using namespace yatf::detail;
 

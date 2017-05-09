@@ -1,9 +1,9 @@
-#include "../include/yatf.h"
+#include "../include/yatf.hpp"
 #include <boost/test/unit_test.hpp>
 #include <string>
 #include <iomanip>
 #include <sstream>
-#include "common.h"
+#include "common.hpp"
 
 using namespace yatf::detail;
 
