@@ -196,13 +196,6 @@ struct test_session final {
             _runner = [](void (*f)()){ f(); };
         }
 
-        template <class Fixture>
-        explicit test_case(const char *suite, const char *test, void (*func)(), Fixture *)
-                : _test_case_func(func), suite_name(suite), test_name(test) {
-            test_session::get().register_test(this);
-            _runner = [](void (*f)()){ Fixture fix; f(); };
-        }
-
         bool assert_true(bool cond) {
             ++assertions;
             if (!cond) ++failed;
@@ -394,13 +387,8 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
     yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##__##name}; \
     static void suite##__##name()
 
-#define YATF_TEST_FIXTURE(suite, name, f) \
-    static void suite##__##name(); \
-    yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##__##name, (f *)(nullptr)}; \
-    static void suite##__##name()
-
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
-#define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
+#define TEST(...) GET_4TH(__VA_ARGS__, UNUSED, YATF_TEST)(__VA_ARGS__)
 
 #ifdef YATF_MAIN
 
