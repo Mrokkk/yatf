@@ -379,8 +379,11 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
         } \
     } while (0)
 
+#define YATF_CONCAT_(x,y) x##y
+#define YATF_CONCAT(x,y) YATF_CONCAT_(x,y)
+
 #define YATF_UNIQUE_NAME(name) \
-    name##__LINE__
+    YATF_CONCAT(name, __LINE__)
 
 #define YATF_TEST(suite, name) \
     static void suite##__##name(); \
