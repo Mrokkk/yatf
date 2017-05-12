@@ -32,8 +32,8 @@ void reset_buffer() {
 namespace yatf {
 namespace detail {
 
-test_session test_session::_instance;
-printf_t _printf = print;
+test_session test_session::instance_;
+printf_t printf_ = print;
 
 } // namespace detail
 } // namespace yatf

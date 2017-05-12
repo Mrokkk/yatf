@@ -19,7 +19,7 @@ struct config final {
 
 namespace detail {
 
-extern printf_t _printf;
+extern printf_t printf_;
 
 inline int compare_strings(const char *s1, const char *s2) {
     while(*s1 && (*s1 == *s2))
@@ -35,12 +35,12 @@ struct printer {
 
     template <typename T>
     static typename std::enable_if<std::is_signed<T>::value>::type print(T a) {
-        _printf("%d", a);
+        printf_("%d", a);
     }
 
     template <typename T>
     static typename std::enable_if<std::is_unsigned<T>::value>::type print(T a) {
-        _printf("%u", a);
+        printf_("%u", a);
     }
 
     template <typename T>
@@ -49,11 +49,11 @@ struct printer {
         std::is_same<T, const char *>::value
     >::type
     print(T str) {
-        _printf(str);
+        printf_(str);
     }
 
     static void print(char c) {
-        _printf("%c", c);
+        printf_("%c", c);
     }
 
     template <typename T>
@@ -62,23 +62,23 @@ struct printer {
         !std::is_same<T, char *>::value &&
         !std::is_same<T, const char *>::value
     >::type print(T a) {
-        _printf("0x%x", reinterpret_cast<unsigned long>(a));
+        printf_("0x%x", reinterpret_cast<unsigned long>(a));
     }
 
     static void print(std::nullptr_t) {
-        _printf("NULL");
+        printf_("NULL");
     }
 
     static void print(color c) {
         switch (c) {
             case color::red:
-                _printf("\e[31m");
+                printf_("\e[31m");
                 break;
             case color::green:
-                _printf("\e[32m");
+                printf_("\e[32m");
                 break;
             case color::reset:
-                _printf("\e[0m");
+                printf_("\e[0m");
                 break;
         }
     }
@@ -86,7 +86,7 @@ struct printer {
     static void print(cursor_movement c) {
         switch (c) {
             case cursor_movement::up:
-                _printf("\033[1A");
+                printf_("\033[1A");
                 break;
         }
     }
@@ -106,8 +106,8 @@ struct test_session final {
         enum class msg { start_end, run, pass, fail };
 
         static const char *get(msg m) {
-            const char *_run_message[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
-            return _run_message[static_cast<int>(m)];
+            const char *run_messages_[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
+            return run_messages_[static_cast<int>(m)];
         }
 
     };
@@ -116,13 +116,12 @@ struct test_session final {
     template <typename Type>
     class tests_list {
 
-        Type *_prev, *_next;
+        Type *prev_, *next_;
 
         void add_element(Type &new_element, Type &prev, Type &next) {
-            next._prev = &new_element;
-            prev._next = &new_element;
-            new_element._next = &next;
-            new_element._prev = &prev;
+            next.prev_ = prev.next_ = &new_element;
+            new_element.next_ = &next;
+            new_element.prev_ = &prev;
         }
 
         operator Type &() {
@@ -133,43 +132,43 @@ struct test_session final {
 
         class iterator {
 
-            Type *_ptr = nullptr;
+            Type *ptr_ = nullptr;
 
         public:
 
             iterator(Type *t)
-                : _ptr(t) {}
+                : ptr_(t) {}
 
             iterator &operator++() {
-                _ptr = _ptr->next();
+                ptr_ = ptr_->next();
                 return *this;
             }
 
             Type &operator*() {
-                return *_ptr;
+                return *ptr_;
             }
 
             bool operator!=(const iterator &comp) {
-                return _ptr != comp._ptr;
+                return ptr_ != comp.ptr_;
             }
 
         };
 
         tests_list() {
-            _next = _prev = reinterpret_cast<Type *>(this);
+            next_ = prev_ = reinterpret_cast<Type *>(this);
         }
 
         Type &add(Type *new_element) {
-            add_element(*new_element, *_prev, *this);
+            add_element(*new_element, *prev_, *this);
             return *this;
         }
 
         Type *next() {
-            return _next == this ? nullptr : _next;
+            return next_ == this ? nullptr : next_;
         }
 
         iterator begin() {
-            return iterator(_next);
+            return iterator(next_);
         }
 
         iterator end() {
@@ -180,8 +179,8 @@ struct test_session final {
 
     class test_case final : public tests_list<test_case> {
 
-        void (*_test_case_func)();
-        void (*_runner)(void (*)());
+        void (*test_case_function_)();
+        void (*runner_)(void (*)());
 
     public:
 
@@ -191,9 +190,9 @@ struct test_session final {
         unsigned failed = 0;
 
         explicit test_case(const char *suite, const char *test, void (*func)())
-                : _test_case_func(func), suite_name(suite), test_name(test) {
+                : test_case_function_(func), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
-            _runner = [](void (*f)()){ f(); };
+            runner_ = [](void (*f)()){ f(); };
         }
 
         bool assert_true(bool cond) {
@@ -212,7 +211,7 @@ struct test_session final {
         }
 
         unsigned call() {
-            _runner(_test_case_func);
+            runner_(test_case_function_);
             return failed;
         }
 
@@ -220,29 +219,29 @@ struct test_session final {
 
 private:
 
-    tests_list<test_case> _test_cases;
-    test_case *_current_test_case;
-    unsigned _tests_number = 0;
-    config _config;
-    static test_session _instance;
+    tests_list<test_case> test_cases_;
+    test_case *current_test_case_;
+    unsigned tests_number_ = 0;
+    config config_;
+    static test_session instance_;
     friend yatf_fixture;
 
     void print_in_color(const char *str, printer::color color) const {
-        if (_config.color) printer::print(color);
+        if (config_.color) printer::print(color);
         printer::print(str);
-        if (_config.color) printer::print(printer::color::reset);
+        if (config_.color) printer::print(printer::color::reset);
     }
 
     void test_session_start_message() const {
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
-        printer::print(" Running ", static_cast<int>(_tests_number), " test cases\n");
+        printer::print(" Running ", static_cast<int>(tests_number_), " test cases\n");
     }
 
     void test_session_end_message(int failed) const {
-        if (_config.fails_only && _config.oneliners)
+        if (config_.fails_only && config_.oneliners)
             printer::print(printer::cursor_movement::up);
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
-        printer::print(" Passed ", static_cast<int>(_tests_number - failed), " test cases\n");
+        printer::print(" Passed ", static_cast<int>(tests_number_ - failed), " test cases\n");
         if (failed) {
             print_in_color(messages::get(messages::msg::start_end), printer::color::red);
             printer::print(" Failed ", static_cast<int>(failed), " test cases\n");
@@ -250,7 +249,7 @@ private:
     }
 
     void test_start_message(test_case &t) const {
-        if (_config.fails_only) return;
+        if (config_.fails_only) return;
         print_in_color(messages::get(messages::msg::run), printer::color::green);
         printer::print(" ",  t.suite_name, ".", t.test_name, "\n");
     }
@@ -261,8 +260,8 @@ private:
             printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
         }
         else {
-            if (_config.fails_only) return;
-            if (_config.oneliners)
+            if (config_.fails_only) return;
+            if (config_.oneliners)
                 printer::print(printer::cursor_movement::up);
             print_in_color(messages::get(messages::msg::pass), printer::color::green);
             printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
@@ -295,11 +294,11 @@ private:
         }
         *dot_position = 0;
         auto case_name = dot_position + 1;
-        for (auto &test : _test_cases) {
+        for (auto &test : test_cases_) {
             if (compare_strings(test.test_name, case_name) == 0 &&
                 compare_strings(test.suite_name, suite_name) == 0) {
                 test_start_message(test);
-                _current_test_case = &test;
+                current_test_case_ = &test;
                 auto result = test.call();
                 test_result(test);
                 return result;
@@ -313,24 +312,24 @@ private:
 public:
 
     static test_session &get() {
-        return _instance;
+        return instance_;
     }
 
     void register_test(test_case *t) {
-        _tests_number++;
-        _test_cases.add(t);
+        tests_number_++;
+        test_cases_.add(t);
     }
 
     int run(config c, const char *test_name = nullptr) {
-        _config = c;
+        config_ = c;
         if (test_name) {
             return call_one_test(test_name);
         }
         auto failed = 0u;
         test_session_start_message();
-        for (auto &test : _test_cases) {
+        for (auto &test : test_cases_) {
             test_start_message(test);
-            _current_test_case = &test;
+            current_test_case_ = &test;
             if (test.call())
                 failed++;
             test_result(test);
@@ -340,11 +339,11 @@ public:
     }
 
     test_case &current_test_case() {
-        return *_current_test_case;
+        return *current_test_case_;
     }
 
     void current_test_case(test_case *tc) {
-        _current_test_case = tc; // for tests only
+        current_test_case_ = tc; // for tests only
     }
 
 };
@@ -397,8 +396,8 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 
 namespace detail {
 
-test_session test_session::_instance;
-printf_t _printf;
+test_session test_session::instance_;
+printf_t printf_;
 
 } // namespace detail
 
@@ -413,12 +412,12 @@ inline config read_config(unsigned argc, const char **argv) {
 }
 
 inline int main(printf_t print_func, unsigned argc = 0, const char **argv = nullptr) {
-    detail::_printf = print_func;
+    detail::printf_ = print_func;
     return detail::test_session::get().run(read_config(argc, argv));
 }
 
 inline int main(printf_t print_func, config &c) {
-    detail::_printf = print_func;
+    detail::printf_ = print_func;
     return detail::test_session::get().run(c);
 }
 
@@ -426,7 +425,7 @@ inline int run_one(printf_t print_func, const char *test_name, config &c) {
     if (test_name == nullptr) {
         return -1;
     }
-    detail::_printf = print_func;
+    detail::printf_ = print_func;
     return detail::test_session::get().run(c, test_name);
 }
 
