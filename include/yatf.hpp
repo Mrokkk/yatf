@@ -19,6 +19,71 @@ struct config final {
 
 namespace detail {
 
+struct empty_fixture {};
+
+class void_function {
+
+    class callable {
+    public:
+        virtual ~callable() {}
+        virtual void operator()() const = 0;
+    };
+
+    template <typename ClosureType>
+    class closure: public callable {
+
+        const ClosureType func_;
+
+    public:
+
+        closure(const ClosureType &handler) : func_(handler) {
+        }
+
+        ~closure() {
+        }
+
+        void operator()() const override {
+            func_();
+        }
+
+        constexpr void *operator new(std::size_t, void *address) {
+            return address;
+        }
+
+    };
+
+    const callable *func_wrapper_ = nullptr;
+    char data_[2 * sizeof(void *)];
+
+public:
+
+    void_function() = default;
+
+    void_function(const void_function &fn) {
+        func_wrapper_ = fn.func_wrapper_;
+    }
+
+    void_function(void_function &&fn) {
+        func_wrapper_ = fn.func_wrapper_;
+        fn.func_wrapper_ = nullptr;
+    }
+
+    template<typename ClosureType>
+    void_function(ClosureType &&function)
+            : func_wrapper_(new (data_) closure<ClosureType>(function)) {
+    }
+
+    template<typename ClosureType>
+    void operator=(ClosureType function) {
+        func_wrapper_ = new (data_) closure<ClosureType>(function);
+    }
+
+    void operator()() const {
+        (*func_wrapper_)();
+    }
+
+};
+
 extern printf_t printf_;
 
 inline int compare_strings(const char *s1, const char *s2) {
@@ -177,22 +242,22 @@ struct test_session final {
 
     };
 
-    class test_case final : public tests_list<test_case> {
-
-        void (*test_case_function_)();
-        void (*runner_)(void (*)());
+    class test_case : public tests_list<test_case> {
+    protected:
+        void_function test_case_function_;
 
     public:
-
         const char *suite_name;
         const char *test_name;
         unsigned assertions = 0;
         unsigned failed = 0;
 
+        test_case() = default;
+
         explicit test_case(const char *suite, const char *test, void (*func)())
-                : test_case_function_(func), suite_name(suite), test_name(test) {
+                : suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
-            runner_ = [](void (*f)()){ f(); };
+            test_case_function_ = func;
         }
 
         bool assert_true(bool cond) {
@@ -211,7 +276,7 @@ struct test_session final {
         }
 
         unsigned call() {
-            runner_(test_case_function_);
+            test_case_function_();
             return failed;
         }
 
@@ -384,13 +449,24 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 #define YATF_UNIQUE_NAME(name) \
     YATF_CONCAT(name, __LINE__)
 
+
+#define YATF_TEST_FIXTURE(suite, name, f) \
+    struct suite##__##name : public yatf::detail::test_session::test_case, public f { \
+        explicit suite##__##name(const char *sn, const char *tn) { \
+            suite_name = sn; \
+            test_name = tn; \
+            yatf::detail::test_session::get().register_test(this); \
+            test_case_function_ = [this]() { call(); }; \
+        } \
+        void call(); \
+    } YATF_UNIQUE_NAME(suite##_##name){#suite, #name}; \
+    void suite##__##name::call()
+
 #define YATF_TEST(suite, name) \
-    static void suite##__##name(); \
-    yatf::detail::test_session::test_case YATF_UNIQUE_NAME(suite##_##name){#suite, #name, suite##__##name}; \
-    static void suite##__##name()
+    YATF_TEST_FIXTURE(suite, name, ::yatf::detail::empty_fixture)
 
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
-#define TEST(...) GET_4TH(__VA_ARGS__, UNUSED, YATF_TEST)(__VA_ARGS__)
+#define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
 
 #ifdef YATF_MAIN
 
