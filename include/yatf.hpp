@@ -164,6 +164,69 @@ struct printer {
 
 };
 
+template <typename T>
+class mock;
+
+template <typename T>
+class mock_return_value {
+
+    unsigned char data_[sizeof(T)];
+    T *value_ = reinterpret_cast<T *>(data_);
+
+public:
+
+    void set(const T &val) {
+        value_ = new(data_) T(val);
+    }
+
+    T &get() {
+        return *value_;
+    }
+
+};
+
+template <>
+class mock_return_value<void> {};
+
+template <typename T>
+class mock {};
+
+template <typename R, typename ...Args>
+class mock<R(Args...)> {
+
+    std::size_t nr_of_calls_ = 0;
+    mock_return_value<R> default_return_value_;
+
+public:
+
+    template <typename T = R>
+    typename std::enable_if<
+        std::is_void<T>::value, T
+    >::type operator()(Args ...) {
+        ++nr_of_calls_;
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, T
+    >::type operator()(Args ...) {
+        ++nr_of_calls_;
+        return default_return_value_.get();
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, void
+    >::type set_default_return_value(const T &val) {
+        default_return_value_.set(val);
+    }
+
+    std::size_t nr_of_calls() const {
+        return nr_of_calls_;
+    }
+
+};
+
 struct test_session final {
 
     struct messages final {
@@ -421,27 +484,6 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
     return cond;
 }
 
-template <typename T>
-class mock {};
-
-template <typename R, typename ...Args>
-class mock<R(Args...)> {
-
-    std::size_t nr_of_calls_;
-
-public:
-
-    mock() : nr_of_calls_(0) {
-    }
-
-    R operator()(Args ...) {
-        ++nr_of_calls_;
-        return {};
-    }
-
-    friend test_session::test_case;
-
-};
 
 } // namespace detail
 
