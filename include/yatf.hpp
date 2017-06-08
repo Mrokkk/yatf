@@ -25,7 +25,6 @@ class void_function {
 
     class callable {
     public:
-        virtual ~callable() {}
         virtual void operator()() const = 0;
     };
 
@@ -37,9 +36,6 @@ class void_function {
     public:
 
         closure(const ClosureType &handler) : func_(handler) {
-        }
-
-        ~closure() {
         }
 
         void operator()() const override {
@@ -228,9 +224,6 @@ public:
     }
 
 };
-
-template <typename T>
-class mock;
 
 template <typename T>
 class mock_return_value {
