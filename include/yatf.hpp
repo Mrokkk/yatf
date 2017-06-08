@@ -12,7 +12,7 @@ struct config final {
     bool color = true;
     bool oneliners = false;
     bool fails_only = false;
-    constexpr config() {}
+    constexpr config() = default;
     explicit config(bool color, bool oneliners, bool fails_only)
         : color(color), oneliners(oneliners), fails_only(fails_only) {}
 };
@@ -21,10 +21,9 @@ namespace detail {
 
 struct empty_fixture {};
 
-class void_function {
+class void_function final {
 
-    class callable {
-    public:
+    struct callable {
         virtual void operator()() const = 0;
     };
 
@@ -35,7 +34,7 @@ class void_function {
 
     public:
 
-        closure(const ClosureType &handler) : func_(handler) {
+        explicit closure(const ClosureType &handler) : func_(handler) {
         }
 
         void operator()() const override {
@@ -88,7 +87,7 @@ inline int compare_strings(const char *s1, const char *s2) {
     return *(const unsigned char*)s1 - *(const unsigned char*)s2;
 }
 
-struct printer {
+struct printer final {
 
     enum class cursor_movement { up };
 
@@ -184,8 +183,8 @@ public:
 
     public:
 
-        iterator(Type *t)
-            : ptr_(t) {}
+        explicit iterator(Type *t) : ptr_(t) {
+        }
 
         iterator &operator++() {
             ptr_ = ptr_->next();
@@ -196,14 +195,13 @@ public:
             return *ptr_;
         }
 
-        bool operator!=(const iterator &comp) {
+        bool operator!=(const iterator &comp) const {
             return ptr_ != comp.ptr_;
         }
 
     };
 
-    tests_list() {
-        next_ = prev_ = reinterpret_cast<Type *>(this);
+    constexpr tests_list() : prev_(reinterpret_cast<Type *>(this)), next_(reinterpret_cast<Type *>(this)) {
     }
 
     Type &add(Type *new_element) {
@@ -226,7 +224,7 @@ public:
 };
 
 template <typename T>
-class mock_return_value {
+class mock_return_value final {
 
     unsigned char data_[sizeof(T)];
     T *value_ = reinterpret_cast<T *>(data_);
@@ -237,7 +235,7 @@ public:
         value_ = new(data_) T(val);
     }
 
-    T &get() {
+    T &get() const {
         return *value_;
     }
 
@@ -250,7 +248,7 @@ template <typename T>
 class mock {};
 
 template <typename R, typename ...Args>
-class mock<R(Args...)> {
+class mock<R(Args...)> final {
 
     std::size_t nr_of_calls_ = 0;
     mock_return_value<R> default_return_value_;
@@ -305,8 +303,8 @@ struct test_session final {
     public:
         const char *suite_name;
         const char *test_name;
-        unsigned assertions = 0;
-        unsigned failed = 0;
+        std::size_t assertions = 0;
+        std::size_t failed = 0;
 
         test_case() = default;
 
@@ -331,7 +329,7 @@ struct test_session final {
             return cond;
         }
 
-        unsigned call() {
+        std::size_t call() {
             test_case_function_();
             return failed;
         }
@@ -342,7 +340,7 @@ private:
 
     tests_list<test_case> test_cases_;
     test_case *current_test_case_;
-    unsigned tests_number_ = 0;
+    std::size_t tests_number_ = 0;
     config config_;
     static test_session instance_;
     friend yatf_fixture;
@@ -399,7 +397,7 @@ private:
         return nullptr;
     }
 
-    void copy_string(const char *src, char *dest) {
+    void copy_string(const char *src, char *dest) const {
         while (*src) {
             *dest++ = *src++;
         }
@@ -477,7 +475,6 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
     return cond;
 }
 
-
 } // namespace detail
 
 #define REQUIRE(cond) \
@@ -507,16 +504,16 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
     YATF_CONCAT(name, __LINE__)
 
 #define YATF_TEST_FIXTURE(suite, name, f) \
-    struct suite##__##name : public yatf::detail::test_session::test_case, public f { \
+    struct suite##__##name final : public yatf::detail::test_session::test_case, public f { \
         explicit suite##__##name(const char *sn, const char *tn) { \
             suite_name = sn; \
             test_name = tn; \
             yatf::detail::test_session::get().register_test(this); \
-            test_case_function_ = [this]() { call(); }; \
+            test_case_function_ = [this]() { test_body(); }; \
         } \
-        void call(); \
+        void test_body(); \
     } YATF_UNIQUE_NAME(suite##_##name){#suite, #name}; \
-    void suite##__##name::call()
+    void suite##__##name::test_body()
 
 #define YATF_TEST(suite, name) \
     YATF_TEST_FIXTURE(suite, name, ::yatf::detail::empty_fixture)
