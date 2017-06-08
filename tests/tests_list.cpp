@@ -8,7 +8,7 @@ using namespace yatf::detail;
 
 namespace {
 
-struct helper : test_session::tests_list<helper> {
+struct helper : tests_list<helper> {
     int a = 0;
     helper(int x) : a(x) {}
 };
@@ -23,7 +23,7 @@ void init_vectors(std::vector<int> &int_vec, std::vector<helper> &helper_vec, in
     }
 }
 
-void test_adding(test_session::tests_list<helper> &head, int s) {
+void test_adding(tests_list<helper> &head, int s) {
     std::vector<int> v;
     std::vector<helper> helper_vec;
     init_vectors(v, helper_vec, s);
@@ -51,12 +51,12 @@ BOOST_AUTO_TEST_CASE(can_create_empty) {
 }
 
 BOOST_AUTO_TEST_CASE(can_add_elements) {
-    test_session::tests_list<helper> head;
+    tests_list<helper> head;
     test_adding(head, 1024);
 }
 
 BOOST_AUTO_TEST_CASE(can_use_iterator) {
-    test_session::tests_list<helper> head;
+    tests_list<helper> head;
     std::vector<helper> helper_vec{0, 2, 4, 9, 30, 109, 938, -231, 3, -29};
     for (auto &v : helper_vec) {
         head.add(&v);

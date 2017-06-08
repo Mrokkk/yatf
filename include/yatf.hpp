@@ -164,6 +164,71 @@ struct printer {
 
 };
 
+// Minimal version of inherited_list
+template <typename Type>
+class tests_list {
+
+    Type *prev_, *next_;
+
+    void add_element(Type &new_element, Type &prev, Type &next) {
+        next.prev_ = prev.next_ = &new_element;
+        new_element.next_ = &next;
+        new_element.prev_ = &prev;
+    }
+
+    operator Type &() {
+        return *reinterpret_cast<Type *>(this);
+    }
+
+public:
+
+    class iterator {
+
+        Type *ptr_ = nullptr;
+
+    public:
+
+        iterator(Type *t)
+            : ptr_(t) {}
+
+        iterator &operator++() {
+            ptr_ = ptr_->next();
+            return *this;
+        }
+
+        Type &operator*() {
+            return *ptr_;
+        }
+
+        bool operator!=(const iterator &comp) {
+            return ptr_ != comp.ptr_;
+        }
+
+    };
+
+    tests_list() {
+        next_ = prev_ = reinterpret_cast<Type *>(this);
+    }
+
+    Type &add(Type *new_element) {
+        add_element(*new_element, *prev_, *this);
+        return *this;
+    }
+
+    Type *next() {
+        return next_ == this ? nullptr : next_;
+    }
+
+    iterator begin() {
+        return iterator(next_);
+    }
+
+    iterator end() {
+        return iterator(reinterpret_cast<Type *>(this));
+    }
+
+};
+
 template <typename T>
 class mock;
 
@@ -236,71 +301,6 @@ struct test_session final {
         static const char *get(msg m) {
             const char *run_messages_[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
             return run_messages_[static_cast<int>(m)];
-        }
-
-    };
-
-    // Minimal version of inherited_list
-    template <typename Type>
-    class tests_list {
-
-        Type *prev_, *next_;
-
-        void add_element(Type &new_element, Type &prev, Type &next) {
-            next.prev_ = prev.next_ = &new_element;
-            new_element.next_ = &next;
-            new_element.prev_ = &prev;
-        }
-
-        operator Type &() {
-            return *reinterpret_cast<Type *>(this);
-        }
-
-    public:
-
-        class iterator {
-
-            Type *ptr_ = nullptr;
-
-        public:
-
-            iterator(Type *t)
-                : ptr_(t) {}
-
-            iterator &operator++() {
-                ptr_ = ptr_->next();
-                return *this;
-            }
-
-            Type &operator*() {
-                return *ptr_;
-            }
-
-            bool operator!=(const iterator &comp) {
-                return ptr_ != comp.ptr_;
-            }
-
-        };
-
-        tests_list() {
-            next_ = prev_ = reinterpret_cast<Type *>(this);
-        }
-
-        Type &add(Type *new_element) {
-            add_element(*new_element, *prev_, *this);
-            return *this;
-        }
-
-        Type *next() {
-            return next_ == this ? nullptr : next_;
-        }
-
-        iterator begin() {
-            return iterator(next_);
-        }
-
-        iterator end() {
-            return iterator(reinterpret_cast<Type *>(this));
         }
 
     };
