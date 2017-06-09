@@ -212,66 +212,6 @@ public:
 
 };
 
-template <typename T>
-class mock_return_value final {
-
-    unsigned char data_[sizeof(T)];
-    T *value_ = reinterpret_cast<T *>(data_);
-
-public:
-
-    void set(const T &val) {
-        value_ = new(data_) T(val);
-    }
-
-    T &get() const {
-        return *value_;
-    }
-
-};
-
-template <>
-class mock_return_value<void> {};
-
-template <typename T>
-class mock {};
-
-template <typename R, typename ...Args>
-class mock<R(Args...)> final {
-
-    std::size_t nr_of_calls_ = 0;
-    mock_return_value<R> default_return_value_;
-
-public:
-
-    template <typename T = R>
-    typename std::enable_if<
-        std::is_void<T>::value, T
-    >::type operator()(Args ...) {
-        ++nr_of_calls_;
-    }
-
-    template <typename T = R>
-    typename std::enable_if<
-        !std::is_void<T>::value, T
-    >::type operator()(Args ...) {
-        ++nr_of_calls_;
-        return default_return_value_.get();
-    }
-
-    template <typename T = R>
-    typename std::enable_if<
-        !std::is_void<T>::value, void
-    >::type set_default_return_value(const T &val) {
-        default_return_value_.set(val);
-    }
-
-    std::size_t nr_of_calls() const {
-        return nr_of_calls_;
-    }
-
-};
-
 struct test_session final {
 
     struct messages final {
@@ -495,13 +435,6 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
 #define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
-
-#define MOCK(signature, name) \
-    ::yatf::detail::mock<signature> name;
-
-#define REQUIRE_CALL(name) \
-    do { \
-    } while (0)
 
 #ifdef YATF_MAIN
 
