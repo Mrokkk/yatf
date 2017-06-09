@@ -19,72 +19,31 @@ struct config final {
 
 namespace detail {
 
-struct empty_fixture {};
-
-class void_function final {
-
-    struct callable {
-        virtual void operator()() const = 0;
-    };
-
-    template <typename ClosureType>
-    class closure: public callable {
-
-        const ClosureType func_;
-
-    public:
-
-        explicit closure(const ClosureType &handler) : func_(handler) {
-        }
-
-        void operator()() const override {
-            func_();
-        }
-
-        constexpr void *operator new(std::size_t, void *address) {
-            return address;
-        }
-
-    };
-
-    const callable *func_wrapper_ = nullptr;
-    char data_[2 * sizeof(void *)];
-
-public:
-
-    void_function() = default;
-
-    void_function(const void_function &fn) {
-        func_wrapper_ = fn.func_wrapper_;
-    }
-
-    void_function(void_function &&fn) {
-        func_wrapper_ = fn.func_wrapper_;
-        fn.func_wrapper_ = nullptr;
-    }
-
-    template<typename ClosureType>
-    void_function(ClosureType &&function)
-            : func_wrapper_(new (data_) closure<ClosureType>(function)) {
-    }
-
-    template<typename ClosureType>
-    void operator=(ClosureType function) {
-        func_wrapper_ = new (data_) closure<ClosureType>(function);
-    }
-
-    void operator()() const {
-        (*func_wrapper_)();
-    }
-
-};
-
 extern printf_t printf_;
+
+struct empty_fixture {};
 
 inline int compare_strings(const char *s1, const char *s2) {
     while(*s1 && (*s1 == *s2))
-        s1++, s2++;
+        ++s1, ++s2;
     return *(const unsigned char*)s1 - *(const unsigned char*)s2;
+}
+
+inline char *find(char *str, char c) {
+    while (*str) {
+        if (*str == c) {
+            return str;
+        }
+        ++str;
+    }
+    return nullptr;
+}
+
+inline void copy_string(const char *src, char *dest) {
+    while (*src) {
+        *dest++ = *src++;
+    }
+    *dest = 0;
 }
 
 struct printer final {
@@ -416,23 +375,6 @@ private:
         }
     }
 
-    char *find(char *str, char c) const {
-        while (*str) {
-            if (*str == c) {
-                return str;
-            }
-            str++;
-        }
-        return nullptr;
-    }
-
-    void copy_string(const char *src, char *dest) const {
-        while (*src) {
-            *dest++ = *src++;
-        }
-        *dest = 0;
-    }
-
     int call_one_test(const char *test_name) {
         char suite_name[512]; // FIXME
         copy_string(test_name, suite_name);
@@ -444,7 +386,7 @@ private:
         auto case_name = dot_position + 1;
         for (auto &test : test_cases_) {
             if (compare_strings(test.test_name, case_name) == 0 &&
-                compare_strings(test.suite_name, suite_name) == 0) {
+                    compare_strings(test.suite_name, suite_name) == 0) {
                 test_start_message(test);
                 current_test_case_ = &test;
                 test.test_body();
