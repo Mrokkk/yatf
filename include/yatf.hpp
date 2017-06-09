@@ -228,8 +228,6 @@ public:
     }
 
     void remove() {
-        next_->prev_ = prev_;
-        prev_->next_ = next_;
         prev_ = next_ = this;
     }
 
