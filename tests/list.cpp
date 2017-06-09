@@ -8,9 +8,10 @@ using namespace yatf::detail;
 
 namespace {
 
-struct helper : tests_list<helper> {
+struct helper {
     int a = 0;
-    helper(int x) : a(x) {}
+    list<helper> node_;
+    helper(int x) : a(x), node_(&helper::node_) {}
 };
 
 void init_vectors(std::vector<int> &int_vec, std::vector<helper> &helper_vec, int size) {
@@ -23,14 +24,14 @@ void init_vectors(std::vector<int> &int_vec, std::vector<helper> &helper_vec, in
     }
 }
 
-void test_adding(tests_list<helper> &head, int s) {
+void test_adding(list<helper> &head, int s) {
     std::vector<int> v;
     std::vector<helper> helper_vec;
     init_vectors(v, helper_vec, s);
     auto expected_size = 1;
     for (auto &h : helper_vec) {
         auto size = 0;
-        head.add(&h);
+        head.push_back(h);
         for (const auto &h : head) {
             BOOST_CHECK_EQUAL(v[size], h.a);
             size++;
@@ -46,20 +47,20 @@ BOOST_AUTO_TEST_SUITE(tests_list_suite)
 
 BOOST_AUTO_TEST_CASE(can_create_empty) {
     helper h(2);
-    BOOST_CHECK_EQUAL(h.next(), (void *)nullptr);
+    BOOST_CHECK_EQUAL(h.node_.next(), &h.node_);
     BOOST_CHECK_EQUAL(h.a, 2);
 }
 
 BOOST_AUTO_TEST_CASE(can_add_elements) {
-    tests_list<helper> head;
+    list<helper> head(&helper::node_);
     test_adding(head, 1024);
 }
 
 BOOST_AUTO_TEST_CASE(can_use_iterator) {
-    tests_list<helper> head;
+    list<helper> head(&helper::node_);
     std::vector<helper> helper_vec{0, 2, 4, 9, 30, 109, 938, -231, 3, -29};
     for (auto &v : helper_vec) {
-        head.add(&v);
+        head.push_back(v);
     }
     for (auto it = std::make_pair(helper_vec.begin(), head.begin()); it.first != helper_vec.end(); ++it.first, ++it.second) {
         BOOST_CHECK_EQUAL(it.first->a, (*it.second).a);

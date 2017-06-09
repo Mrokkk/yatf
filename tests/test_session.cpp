@@ -23,14 +23,14 @@ BOOST_AUTO_TEST_CASE(can_return_message) {
 
 namespace {
 
-void passing_test_case() {
+TEST(suite, passing_test_case) {
     REQUIRE_EQ(1, 1);
     REQUIRE(true);
     REQUIRE_FALSE(false);
     REQUIRE_EQ(0, 0);
 }
 
-void failing_test_case() {
+TEST(suite, failing_test_case) {
     REQUIRE_EQ(1, 1);
     REQUIRE(true);
     REQUIRE(false);
@@ -62,10 +62,10 @@ BOOST_FIXTURE_TEST_CASE(can_run_tests, yatf_fixture) {
     for (auto c = configs.begin(); c != configs.end(); ++c) {
         for (auto i = 0u; i < 512; ++i) {
             bool pass = std::rand() % 2 == 1;
-            if (pass) tests.push_back(std::make_unique<test_session::test_case>("t", "t", passing_test_case));
+            if (pass) tests.push_back(std::make_unique<suite__passing_test_case>("t", "t"));
             else {
                 failed++;
-                tests.push_back(std::make_unique<test_session::test_case>("t", "t", failing_test_case));
+                tests.push_back(std::make_unique<suite__failing_test_case>("t", "t"));
             }
             BOOST_CHECK_EQUAL(failed, test_session::get().run(*c));
         }
@@ -88,9 +88,9 @@ BOOST_FIXTURE_TEST_CASE(can_run_one_test, yatf_fixture) {
     };
     printf_ = stubbed_printf;
     for (auto c = configs.begin(); c != ++configs.begin(); ++c) {
-        tests.push_back(std::make_unique<test_session::test_case>("t", "t1", passing_test_case));
+        tests.push_back(std::make_unique<suite__passing_test_case>("t", "t1"));
         BOOST_CHECK_EQUAL(0, test_session::get().run(*c, "t.t1"));
-        tests.push_back(std::make_unique<test_session::test_case>("t", "t2", failing_test_case));
+        tests.push_back(std::make_unique<suite__failing_test_case>("t", "t2"));
         BOOST_CHECK_EQUAL(3, test_session::get().run(*c, "t.t2"));
         BOOST_CHECK(test_session::get().run(*c, "t.t3") < 0);
         BOOST_CHECK(test_session::get().run(*c, "some_bad_name") < 0);

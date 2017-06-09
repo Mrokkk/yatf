@@ -39,6 +39,5 @@ printf_t printf_ = print;
 } // namespace detail
 } // namespace yatf
 
-void empty_test_case() {}
-yatf::detail::test_session::test_case dummy_tc{"suite", "test", empty_test_case};
+dummy_test_case dummy_tc{"suite", "test"};
 

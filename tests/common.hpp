@@ -4,14 +4,30 @@
 #include <string>
 #include <memory>
 
-extern yatf::detail::test_session::test_case dummy_tc;
+struct dummy_test_case : public yatf::detail::test_session::test_case {
+    explicit dummy_test_case(const char *sn, const char *tn) {
+        suite_name = sn;
+        test_name = tn;
+        yatf::detail::test_session::get().register_test(this);
+    }
+
+    void test_body() override {
+    }
+
+};
+
+extern dummy_test_case dummy_tc;
 
 std::string get_buffer();
 void reset_buffer();
 
 struct yatf_fixture {
     yatf::detail::printer printer;
-    yatf_fixture() { reset_buffer(); yatf::detail::test_session::instance_.test_cases_ = dummy_tc; }
+    yatf_fixture() {
+        reset_buffer();
+        yatf::detail::test_session::instance_.test_cases_.remove();
+        yatf::detail::test_session::instance_.test_cases_.push_back(dummy_tc);
+    }
     ~yatf_fixture() { reset_buffer(); }
 };
 

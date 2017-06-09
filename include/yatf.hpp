@@ -166,58 +166,79 @@ struct printer final {
 
 extern printer printer_;
 
-// Minimal version of inherited_list
 template <typename Type>
-class tests_list {
+class list final {
 
-    Type *prev_, *next_;
+    list *next_ = this, *prev_ = this;
+    std::size_t offset_;
 
-    void add_element(Type &new_element, Type &prev, Type &next) {
-        next.prev_ = prev.next_ = &new_element;
-        new_element.next_ = &next;
-        new_element.prev_ = &prev;
+    void add_element(list *new_element, list *prev, list *next) {
+        next->prev_ = new_element;
+        prev->next_ = new_element;
+        new_element->next_ = next;
+        new_element->prev_ = prev;
     }
 
-    operator Type &() {
-        return *reinterpret_cast<Type *>(this);
+    template <typename T, typename U>
+    constexpr std::size_t offset_of(U T::*member) const {
+        return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
+    }
+
+    constexpr Type *this_offset(int offset) {
+        return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
+    }
+
+    list *list_member(Type *obj) {
+        return reinterpret_cast<list *>(reinterpret_cast<char *>(obj) + offset_);
     }
 
 public:
 
     class iterator {
 
-        Type *ptr_ = nullptr;
+        list *ptr = nullptr;
 
     public:
 
-        explicit iterator(Type *t) : ptr_(t) {
+        explicit iterator(list *p) : ptr(p) {
         }
 
         iterator &operator++() {
-            ptr_ = ptr_->next();
+            ptr = ptr->next_;
             return *this;
         }
 
-        Type &operator*() {
-            return *ptr_;
+        Type &operator *() {
+            return *ptr->entry();
         }
 
-        bool operator!=(const iterator &comp) const {
-            return ptr_ != comp.ptr_;
+        bool operator!=(const iterator &i) const {
+            return i.ptr != ptr;
         }
 
     };
 
-    constexpr tests_list() : prev_(reinterpret_cast<Type *>(this)), next_(reinterpret_cast<Type *>(this)) {
+    template <typename U>
+    explicit list(U Type::*member) {
+        offset_ = offset_of(member);
     }
 
-    Type &add(Type *new_element) {
-        add_element(*new_element, *prev_, *this);
-        return *this;
+    void push_back(Type &new_element) {
+        add_element(list_member(&new_element), prev_, this);
     }
 
-    Type *next() {
-        return next_ == this ? nullptr : next_;
+    void remove() {
+        next_->prev_ = prev_;
+        prev_->next_ = next_;
+        prev_ = next_ = this;
+    }
+
+    bool empty() const {
+        return prev_ == this;
+    }
+
+    Type *entry() {
+        return this_offset(-offset_);
     }
 
     iterator begin() {
@@ -225,7 +246,11 @@ public:
     }
 
     iterator end() {
-        return iterator(reinterpret_cast<Type *>(this));
+        return iterator(this);
+    }
+
+    list *next() const {
+        return next_;
     }
 
 };
@@ -303,9 +328,9 @@ struct test_session final {
 
     };
 
-    class test_case : public tests_list<test_case> {
-    protected:
-        void_function test_case_function_;
+    class test_case {
+
+        list<test_case> node_;
 
     public:
         const char *suite_name;
@@ -313,12 +338,12 @@ struct test_session final {
         std::size_t assertions = 0;
         std::size_t failed = 0;
 
-        test_case() = default;
+        test_case() : node_(&test_case::node_) {
+        }
 
-        explicit test_case(const char *suite, const char *test, void (*func)())
-                : suite_name(suite), test_name(test) {
+        explicit test_case(const char *suite, const char *test)
+                : node_(&test_case::node_), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
-            test_case_function_ = func;
         }
 
         bool assert_true(bool cond) {
@@ -336,16 +361,15 @@ struct test_session final {
             return cond;
         }
 
-        std::size_t call() {
-            test_case_function_();
-            return failed;
-        }
+        virtual void test_body() = 0;
+
+        friend test_session;
 
     };
 
 private:
 
-    tests_list<test_case> test_cases_;
+    list<test_case> test_cases_;
     test_case *current_test_case_;
     std::size_t tests_number_ = 0;
     config config_;
@@ -425,7 +449,8 @@ private:
                 compare_strings(test.suite_name, suite_name) == 0) {
                 test_start_message(test);
                 current_test_case_ = &test;
-                auto result = test.call();
+                test.test_body();
+                auto result = test.failed;
                 test_result(test);
                 return result;
             }
@@ -437,13 +462,16 @@ private:
 
 public:
 
+    test_session() : test_cases_(&test_case::node_) {
+    }
+
     static test_session &get() {
         return instance_;
     }
 
     void register_test(test_case *t) {
         tests_number_++;
-        test_cases_.add(t);
+        test_cases_.push_back(*t);
     }
 
     int run(config c, const char *test_name = nullptr) {
@@ -456,7 +484,8 @@ public:
         for (auto &test : test_cases_) {
             test_start_message(test);
             current_test_case_ = &test;
-            if (test.call())
+            test.test_body();
+            if (test.failed)
                 failed++;
             test_result(test);
         }
@@ -516,9 +545,8 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
             suite_name = sn; \
             test_name = tn; \
             yatf::detail::test_session::get().register_test(this); \
-            test_case_function_ = [this]() { test_body(); }; \
         } \
-        void test_body(); \
+        void test_body() override; \
     } YATF_UNIQUE_NAME(suite##_##name){#suite, #name}; \
     void suite##__##name::test_body()
 

@@ -12,7 +12,7 @@ if(COVERAGE)
     add_coverage_flags()
 endif()
 
-add_executable(${PROJECT_NAME} main.cpp test_session.cpp test_case.cpp tests_list.cpp printer.cpp)
+add_executable(${PROJECT_NAME} main.cpp test_session.cpp test_case.cpp printer.cpp list.cpp)
 target_link_libraries(${PROJECT_NAME} -lboost_unit_test_framework)
 
 add_run_target(${PROJECT_NAME} tests-run)
