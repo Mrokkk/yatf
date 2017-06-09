@@ -184,7 +184,7 @@ class list final {
         return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
     }
 
-    constexpr Type *this_offset(int offset) {
+    Type *this_offset(int offset) {
         return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
     }
 
