@@ -17,6 +17,9 @@ case "$JOB" in
     "coverage")
         cmake -DCOVERAGE=ON -DCPP_STD=${CPP_STANDARD:-c++1z} ..
         make tests-cov -j$cores ;;
+    "sanitizers")
+        cmake -DSANITIZERS=ON -DCPP_STD=${CPP_STANDARD:-c++1z} ..
+        make tests-run -j$cores ;;
     *)
         cmake -DCPP_STD=${CPP_STANDARD:-c++1z} ..
         make tests-run -j$cores ;;
