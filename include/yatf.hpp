@@ -90,46 +90,55 @@ inline int compare_strings(const char *s1, const char *s2) {
 struct printer final {
 
     enum class cursor_movement { up };
-
     enum class color { red, green, reset };
 
     template <typename T>
-    static typename std::enable_if<std::is_signed<T>::value>::type print(T a) {
+    typename std::enable_if<
+        std::is_signed<T>::value, printer &
+    >::type operator<<(T a) {
         printf_("%d", a);
+        return *this;
     }
 
     template <typename T>
-    static typename std::enable_if<std::is_unsigned<T>::value>::type print(T a) {
+    typename std::enable_if<
+        std::is_unsigned<T>::value, printer &
+    >::type operator<<(T a) {
         printf_("%u", a);
+        return *this;
     }
 
     template <typename T>
-    static typename std::enable_if<
+    typename std::enable_if<
         std::is_same<T, char *>::value ||
-        std::is_same<T, const char *>::value
-    >::type
-    print(T str) {
+        std::is_same<T, const char *>::value, printer &
+    >::type operator<<(T str) {
         printf_(str);
+        return *this;
     }
 
-    static void print(char c) {
+    printer &operator<<(char c) {
         printf_("%c", c);
+        return *this;
     }
 
     template <typename T>
-    static typename std::enable_if<
+    typename std::enable_if<
         std::is_pointer<T>::value &&
         !std::is_same<T, char *>::value &&
-        !std::is_same<T, const char *>::value
-    >::type print(T a) {
+        !std::is_same<T, const char *>::value,
+        printer &
+    >::type operator<<(T a) {
         printf_("0x%x", reinterpret_cast<unsigned long>(a));
+        return *this;
     }
 
-    static void print(std::nullptr_t) {
+    printer &operator<<(std::nullptr_t) {
         printf_("NULL");
+        return *this;
     }
 
-    static void print(color c) {
+    printer &operator<<(color c) {
         switch (c) {
             case color::red:
                 printf_("\e[31m");
@@ -141,23 +150,21 @@ struct printer final {
                 printf_("\e[0m");
                 break;
         }
+        return *this;
     }
 
-    static void print(cursor_movement c) {
+    printer &operator<<(cursor_movement c) {
         switch (c) {
             case cursor_movement::up:
                 printf_("\033[1A");
                 break;
         }
-    }
-
-    template<typename First, typename... Rest>
-    static void print(const First &first, const Rest &... rest) {
-        print(first);
-        print(rest...);
+        return *this;
     }
 
 };
+
+extern printer printer_;
 
 // Minimal version of inherited_list
 template <typename Type>
@@ -346,44 +353,44 @@ private:
     friend yatf_fixture;
 
     void print_in_color(const char *str, printer::color color) const {
-        if (config_.color) printer::print(color);
-        printer::print(str);
-        if (config_.color) printer::print(printer::color::reset);
+        if (config_.color) printer_ << color;
+        printer_ << str;
+        if (config_.color) printer_ << printer::color::reset;
     }
 
     void test_session_start_message() const {
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
-        printer::print(" Running ", static_cast<int>(tests_number_), " test cases\n");
+        printer_ << " Running " << static_cast<int>(tests_number_) << " test cases\n";
     }
 
     void test_session_end_message(int failed) const {
         if (config_.fails_only && config_.oneliners)
-            printer::print(printer::cursor_movement::up);
+            printer_ << printer::cursor_movement::up;
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
-        printer::print(" Passed ", static_cast<int>(tests_number_ - failed), " test cases\n");
+        printer_ << " Passed " << static_cast<int>(tests_number_ - failed) << " test cases\n";
         if (failed) {
             print_in_color(messages::get(messages::msg::start_end), printer::color::red);
-            printer::print(" Failed ", static_cast<int>(failed), " test cases\n");
+            printer_ << " Failed " << static_cast<int>(failed) << " test cases\n";
         }
     }
 
     void test_start_message(test_case &t) const {
         if (config_.fails_only) return;
         print_in_color(messages::get(messages::msg::run), printer::color::green);
-        printer::print(" ",  t.suite_name, ".", t.test_name, "\n");
+        printer_ << " " << t.suite_name << "." << t.test_name << "\n";
     }
 
     void test_result(test_case &t) const {
         if (t.failed) {
             print_in_color(messages::get(messages::msg::fail), printer::color::red);
-            printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
+            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions) << " assertions)\n";
         }
         else {
             if (config_.fails_only) return;
             if (config_.oneliners)
-                printer::print(printer::cursor_movement::up);
+                printer_ << printer::cursor_movement::up;
             print_in_color(messages::get(messages::msg::pass), printer::color::green);
-            printer::print(" ", t.suite_name, ".", t.test_name, " (", static_cast<int>(t.assertions), " assertions)\n");
+            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions) << " assertions)\n";
         }
     }
 
@@ -424,7 +431,7 @@ private:
             }
         }
         print_in_color(messages::get(messages::msg::fail), printer::color::red);
-        printer::print(" error because of bad test name\n");
+        printer_ << " error because of bad test name\n";
         return -1;
     }
 
@@ -480,20 +487,20 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 #define REQUIRE(cond) \
     do { \
         if (!yatf::detail::test_session::get().current_test_case().assert_true(cond)) \
-            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is false\n"); \
+            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #cond << "\' is false\n"; \
     } while (0)
 
 #define REQUIRE_FALSE(cond) \
     do { \
         if (!yatf::detail::test_session::get().current_test_case().assert_true(!(cond))) \
-            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #cond, "\' is true\n"); \
+            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #cond << "\' is true\n"; \
     } while (0)
 
 #define REQUIRE_EQ(lhs, rhs) \
     do { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
-            yatf::detail::printer::print("assertion failed: ", __FILE__, ':', __LINE__, " \'", #lhs, "\' isn't \'", #rhs, "\': "); \
-            yatf::detail::printer::print(lhs, " != ", rhs, "\n"); \
+            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #lhs << "\' isn't \'" << #rhs << "\': "; \
+            yatf::detail::printer_ << lhs << " != " << rhs << "\n"; \
         } \
     } while (0)
 
@@ -533,6 +540,7 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 namespace detail {
 
 test_session test_session::instance_;
+printer printer_;
 printf_t printf_;
 
 } // namespace detail

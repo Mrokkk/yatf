@@ -10,6 +10,7 @@ std::string get_buffer();
 void reset_buffer();
 
 struct yatf_fixture {
+    yatf::detail::printer printer;
     yatf_fixture() { reset_buffer(); yatf::detail::test_session::instance_.test_cases_ = dummy_tc; }
     ~yatf_fixture() { reset_buffer(); }
 };
