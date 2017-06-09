@@ -1,6 +1,8 @@
 #pragma once
 
 #include <type_traits>
+#include "list.hpp"
+#include "yatf_mock.hpp"
 
 struct yatf_fixture;
 
@@ -125,93 +127,6 @@ struct printer final {
 
 extern printer printer_;
 
-template <typename Type>
-class list final {
-
-    list *next_ = this, *prev_ = this;
-    std::size_t offset_;
-
-    void add_element(list *new_element, list *prev, list *next) {
-        next->prev_ = new_element;
-        prev->next_ = new_element;
-        new_element->next_ = next;
-        new_element->prev_ = prev;
-    }
-
-    template <typename T, typename U>
-    constexpr std::size_t offset_of(U T::*member) const {
-        return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
-    }
-
-    Type *this_offset(int offset) {
-        return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
-    }
-
-    list *list_member(Type *obj) {
-        return reinterpret_cast<list *>(reinterpret_cast<char *>(obj) + offset_);
-    }
-
-public:
-
-    class iterator {
-
-        list *ptr = nullptr;
-
-    public:
-
-        explicit iterator(list *p) : ptr(p) {
-        }
-
-        iterator &operator++() {
-            ptr = ptr->next_;
-            return *this;
-        }
-
-        Type &operator *() {
-            return *ptr->entry();
-        }
-
-        bool operator!=(const iterator &i) const {
-            return i.ptr != ptr;
-        }
-
-    };
-
-    template <typename U>
-    explicit list(U Type::*member) {
-        offset_ = offset_of(member);
-    }
-
-    void push_back(Type &new_element) {
-        add_element(list_member(&new_element), prev_, this);
-    }
-
-    void remove() {
-        prev_ = next_ = this;
-    }
-
-    bool empty() const {
-        return prev_ == this;
-    }
-
-    Type *entry() {
-        return this_offset(-offset_);
-    }
-
-    iterator begin() {
-        return iterator(next_);
-    }
-
-    iterator end() {
-        return iterator(this);
-    }
-
-    list *next() const {
-        return next_;
-    }
-
-};
-
 struct test_session final {
 
     struct messages final {
@@ -227,7 +142,10 @@ struct test_session final {
 
     class test_case {
 
+        using fn = void(*)();
         list<test_case> node_;
+        fn to_be_evaluated_[32];
+        std::size_t index_ = 0;
 
     public:
         const char *suite_name;
@@ -235,11 +153,11 @@ struct test_session final {
         std::size_t assertions = 0;
         std::size_t failed = 0;
 
-        test_case() : node_(&test_case::node_) {
+        test_case() : node_(&test_case::node_), to_be_evaluated_{} {
         }
 
         explicit test_case(const char *suite, const char *test)
-                : node_(&test_case::node_), suite_name(suite), test_name(test) {
+                : node_(&test_case::node_), to_be_evaluated_{}, suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
         }
 
@@ -256,6 +174,10 @@ struct test_session final {
             bool cond = (lhs == rhs);
             if (!cond) ++failed;
             return cond;
+        }
+
+        void call_later(fn f) {
+            to_be_evaluated_[index_++] = f;
         }
 
         virtual void test_body() = 0;
@@ -365,6 +287,9 @@ public:
             test_start_message(test);
             current_test_case_ = &test;
             test.test_body();
+            for (auto i = 0u; i < test.index_; ++i) {
+                test.to_be_evaluated_[i]();
+            }
             if (test.failed)
                 failed++;
             test_result(test);
@@ -435,6 +360,15 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
 #define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
+
+#define MOCK(signature, name) \
+    yatf::detail::mock<signature> name;
+
+#define REQUIRE_CALL(name) \
+    yatf::detail::test_session::get().current_test_case().call_later([]() { \
+        if (!yatf::detail::test_session::get().current_test_case().assert_true(name.nr_of_calls() > 0)) \
+            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << ": " << #name << " hasn't been called\n"; \
+    })
 
 #ifdef YATF_MAIN
 
