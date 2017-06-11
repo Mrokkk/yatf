@@ -134,7 +134,7 @@ struct test_session final {
         enum class msg { start_end, run, pass, fail };
 
         static const char *get(msg m) {
-            const char *run_messages_[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
+            static const char *run_messages_[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
             return run_messages_[static_cast<int>(m)];
         }
 
