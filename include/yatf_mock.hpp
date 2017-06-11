@@ -66,6 +66,29 @@ public:
 
 };
 
+struct scoped_function {
+
+    using function = void(*)();
+
+private:
+
+    function function_ = nullptr;
+
+public:
+
+    scoped_function() = default;
+
+    scoped_function(function fn) : function_(fn) {
+    }
+
+    ~scoped_function() {
+        if (function_) {
+            function_();
+        }
+    }
+
+};
+
 } // namespace yatf
 
 } // namespace detail

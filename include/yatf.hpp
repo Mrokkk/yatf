@@ -144,8 +144,6 @@ struct test_session final {
 
         using fn = void(*)();
         list<test_case> node_;
-        fn to_be_evaluated_[32];
-        std::size_t index_ = 0;
 
     public:
         const char *suite_name;
@@ -153,11 +151,11 @@ struct test_session final {
         std::size_t assertions = 0;
         std::size_t failed = 0;
 
-        test_case() : node_(&test_case::node_), to_be_evaluated_{} {
+        test_case() : node_(&test_case::node_) {
         }
 
         explicit test_case(const char *suite, const char *test)
-                : node_(&test_case::node_), to_be_evaluated_{}, suite_name(suite), test_name(test) {
+                : node_(&test_case::node_), suite_name(suite), test_name(test) {
             test_session::get().register_test(this);
         }
 
@@ -174,10 +172,6 @@ struct test_session final {
             bool cond = (lhs == rhs);
             if (!cond) ++failed;
             return cond;
-        }
-
-        void call_later(fn f) {
-            to_be_evaluated_[index_++] = f;
         }
 
         virtual void test_body() = 0;
@@ -287,9 +281,6 @@ public:
             test_start_message(test);
             current_test_case_ = &test;
             test.test_body();
-            for (auto i = 0u; i < test.index_; ++i) {
-                test.to_be_evaluated_[i]();
-            }
             if (test.failed)
                 failed++;
             test_result(test);
@@ -339,7 +330,7 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
     } while (0)
 
 #define YATF_CONCAT_(x,y) x##y
-#define YATF_CONCAT(x,y) YATF_CONCAT_(x,y)
+#define YATF_CONCAT(x,y) YATF_CONCAT_(x, y)
 
 #define YATF_UNIQUE_NAME(name) \
     YATF_CONCAT(name, __LINE__)
@@ -365,7 +356,7 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
     yatf::detail::mock<signature> name;
 
 #define REQUIRE_CALL(name) \
-    yatf::detail::test_session::get().current_test_case().call_later([]() { \
+    yatf::detail::scoped_function YATF_UNIQUE_NAME(__mock_assertion)([]() { \
         if (!yatf::detail::test_session::get().current_test_case().assert_true(name.nr_of_calls() > 0)) \
             yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << ": " << #name << " hasn't been called\n"; \
     })
