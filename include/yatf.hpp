@@ -154,11 +154,6 @@ struct test_session final {
         test_case() : node_(&test_case::node_) {
         }
 
-        explicit test_case(const char *suite, const char *test)
-                : node_(&test_case::node_), suite_name(suite), test_name(test) {
-            test_session::get().register_test(this);
-        }
-
         bool assert_true(bool cond) {
             ++assertions;
             if (!cond) ++failed;
