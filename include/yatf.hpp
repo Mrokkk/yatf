@@ -143,7 +143,7 @@ struct test_session final {
     class test_case {
 
         using fn = void(*)();
-        list<test_case> node_;
+        list<test_case>::node node_;
 
     public:
         const char *suite_name;
@@ -151,7 +151,7 @@ struct test_session final {
         std::size_t assertions = 0;
         std::size_t failed = 0;
 
-        test_case() : node_(&test_case::node_) {
+        test_case() {
         }
 
         bool assert_true(bool cond) {
@@ -346,15 +346,6 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
 #define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
-
-#define MOCK(signature, name) \
-    yatf::detail::mock<signature> name;
-
-#define REQUIRE_CALL(name) \
-    yatf::detail::scoped_function YATF_UNIQUE_NAME(__mock_assertion)([]() { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_true(name.nr_of_calls() > 0)) \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << ": " << #name << " hasn't been called\n"; \
-    })
 
 #ifdef YATF_MAIN
 

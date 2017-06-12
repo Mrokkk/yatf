@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include "list.hpp"
 
 namespace yatf {
 
@@ -89,7 +90,16 @@ public:
 
 };
 
-} // namespace yatf
-
 } // namespace detail
+
+#define MOCK(signature, name) \
+    yatf::detail::mock<signature> name;
+
+#define REQUIRE_CALL(name) \
+    yatf::detail::scoped_function YATF_UNIQUE_NAME(__mock_assertion)([]() { \
+        if (!yatf::detail::test_session::get().current_test_case().assert_true(name.nr_of_calls() > 0)) \
+            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << ": " << #name << " hasn't been called\n"; \
+    })
+
+} // namespace yatf
 

@@ -7,16 +7,108 @@ namespace yatf {
 namespace detail {
 
 template <typename Type>
-class list final {
+struct list final {
 
-    list *next_ = this, *prev_ = this;
+    class node {
+
+        node *next_ = this, *prev_ = this;
+        std::size_t offset_ = 0;
+
+        Type *this_offset(int offset) {
+            return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
+        }
+
+        const Type *this_offset(int offset) const {
+            return reinterpret_cast<const Type *>(reinterpret_cast<const char *>(this) + offset);
+        }
+
+    public:
+
+        node *&next() {
+            return next_;
+        }
+
+        node *&prev() {
+            return prev_;
+        }
+
+        const node *next() const {
+            return next_;
+        }
+
+        const node *prev() const {
+            return prev_;
+        }
+
+        Type *entry() {
+            return this_offset(-offset_);
+        }
+
+        const Type *entry() const {
+            return this_offset(-offset_);
+        }
+
+        void set_offset(std::size_t offset) {
+            offset_ = offset;
+        }
+
+        void insert(node *new_node) {
+            new_node->set_offset(offset_);
+            next_->prev() = new_node;
+            prev_->next() = new_node;
+            new_node->next() = next_;
+            new_node->prev() = prev_;
+        }
+
+    };
+
+    using value_type = Type;
+    using node_type = node;
+
+    class iterator {
+
+        node *ptr_ = nullptr;
+
+    public:
+
+        explicit iterator(node *p) : ptr_(p) {
+        }
+
+        iterator &operator++() {
+            ptr_ = ptr_->next();
+            return *this;
+        }
+
+        Type &operator *() {
+            return *ptr_->entry();
+        }
+
+        bool operator!=(const iterator &i) const {
+            return i.ptr_ != ptr_;
+        }
+
+        node *ptr() {
+            return ptr_;
+        }
+
+    };
+private:
+
+    node head_;
     std::size_t offset_;
 
-    void add_element(list *new_element, list *prev, list *next) {
-        next->prev_ = new_element;
-        prev->next_ = new_element;
-        new_element->next_ = next;
-        new_element->prev_ = prev;
+    void add_node(node *new_node, node *prev, node *next) {
+        new_node->set_offset(offset_);
+        next->prev() = new_node;
+        prev->next() = new_node;
+        new_node->next() = next;
+        new_node->prev() = prev;
+    }
+
+    void remove_node(node *n) {
+        n->next()->prev() = n->prev();
+        n->prev()->next() = n->next();
+        n->prev() = n->next() = n;
     }
 
     template <typename T, typename U>
@@ -24,71 +116,59 @@ class list final {
         return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
     }
 
-    Type *this_offset(int offset) {
-        return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
-    }
-
-    list *list_member(Type *obj) {
-        return reinterpret_cast<list *>(reinterpret_cast<char *>(obj) + offset_);
+    node *list_member(Type *obj) {
+        return reinterpret_cast<node *>(reinterpret_cast<char *>(obj) + offset_);
     }
 
 public:
 
-    class iterator {
-
-        list *ptr = nullptr;
-
-    public:
-
-        explicit iterator(list *p) : ptr(p) {
-        }
-
-        iterator &operator++() {
-            ptr = ptr->next_;
-            return *this;
-        }
-
-        Type &operator *() {
-            return *ptr->entry();
-        }
-
-        bool operator!=(const iterator &i) const {
-            return i.ptr != ptr;
-        }
-
-    };
-
     template <typename U>
-    explicit list(U Type::*member) {
+    constexpr explicit list(U Type::*member) {
         offset_ = offset_of(member);
     }
 
-    void push_back(Type &new_element) {
-        add_element(list_member(&new_element), prev_, this);
+    list &push_back(Type &new_node) {
+        add_node(list_member(&new_node), head_.prev(), &head_);
+        return *this;
     }
 
-    void remove() {
-        prev_ = next_ = this;
+    list &insert(const iterator &pos, Type &new_node) {
+        add_node(list_member(&new_node), pos.node()->prev(), pos.node());
+        return *this;
+    }
+
+    list &insert(Type &pos, Type &new_node) {
+        auto node_member = list_member(&pos);
+        add_node(list_member(&new_node), node_member->prev(), node_member);
+        return *this;
+    }
+
+    list &erase(const iterator &it) {
+        remove_node(it.ptr());
+        return *this;
+    }
+
+    list &erase(Type &n) {
+        remove_node(list_member(&n));
+        return *this;
     }
 
     bool empty() const {
-        return prev_ == this;
-    }
-
-    Type *entry() {
-        return this_offset(-offset_);
+        return head_.prev() == &head_;
     }
 
     iterator begin() {
-        return iterator(next_);
+        return iterator(head_.next());
     }
 
     iterator end() {
-        return iterator(this);
+        return iterator(&head_);
     }
 
-    list *next() const {
-        return next_;
+    void clear() {
+        while (not empty()) {
+            remove_node(head_.next());
+        }
     }
 
 };

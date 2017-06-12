@@ -10,8 +10,8 @@ namespace {
 
 struct helper {
     int a = 0;
-    list<helper> node_;
-    helper(int x) : a(x), node_(&helper::node_) {}
+    list<helper>::node node_;
+    helper(int x) : a(x) {}
 };
 
 void init_vectors(std::vector<int> &int_vec, std::vector<helper> &helper_vec, int size) {
