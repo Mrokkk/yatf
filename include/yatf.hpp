@@ -150,6 +150,7 @@ struct test_session final {
         const char *test_name;
         std::size_t assertions = 0;
         std::size_t failed = 0;
+        void *temp_mock;
 
         test_case() {
         }
