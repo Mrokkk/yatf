@@ -25,10 +25,12 @@ struct yatf_fixture {
     yatf::detail::printer printer;
     yatf_fixture() {
         reset_buffer();
-        yatf::detail::test_session::instance_.test_cases_.clear();
+        yatf::detail::test_session::instance_.test_cases_.reset();
         yatf::detail::test_session::instance_.test_cases_.push_back(dummy_tc);
     }
-    ~yatf_fixture() { reset_buffer(); }
+    ~yatf_fixture() {
+        reset_buffer();
+    }
 };
 
 namespace yatf {

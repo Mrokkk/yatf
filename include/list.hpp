@@ -1,6 +1,6 @@
 #pragma once
 
-#include <type_traits>
+#include <stddef.h>
 
 namespace yatf {
 
@@ -12,14 +12,10 @@ struct list final {
     class node {
 
         node *next_ = this, *prev_ = this;
-        std::size_t offset_ = 0;
+        size_t offset_ = 0;
 
         Type *this_offset(int offset) {
             return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
-        }
-
-        const Type *this_offset(int offset) const {
-            return reinterpret_cast<const Type *>(reinterpret_cast<const char *>(this) + offset);
         }
 
     public:
@@ -32,10 +28,6 @@ struct list final {
             return prev_;
         }
 
-        const node *next() const {
-            return next_;
-        }
-
         const node *prev() const {
             return prev_;
         }
@@ -44,20 +36,8 @@ struct list final {
             return this_offset(-offset_);
         }
 
-        const Type *entry() const {
-            return this_offset(-offset_);
-        }
-
-        void set_offset(std::size_t offset) {
+        void set_offset(size_t offset) {
             offset_ = offset;
-        }
-
-        void insert(node *new_node) {
-            new_node->set_offset(offset_);
-            next_->prev() = new_node;
-            prev_->next() = new_node;
-            new_node->next() = next_;
-            new_node->prev() = prev_;
         }
 
     };
@@ -65,13 +45,16 @@ struct list final {
     using value_type = Type;
     using node_type = node;
 
-    class iterator {
+    class iterator final {
 
         node *ptr_ = nullptr;
 
     public:
 
-        explicit iterator(node *p) : ptr_(p) {
+        explicit iterator(node *n) : ptr_(n) {
+        }
+
+        iterator(const iterator &it) : ptr_(it.ptr_) {
         }
 
         iterator &operator++() {
@@ -79,23 +62,32 @@ struct list final {
             return *this;
         }
 
-        Type &operator *() {
+        Type &operator*() {
             return *ptr_->entry();
         }
 
-        bool operator!=(const iterator &i) const {
-            return i.ptr_ != ptr_;
+        Type *operator->() {
+            return ptr_->entry();
+        }
+
+        bool operator!=(const iterator &it) {
+            return it.ptr_ != ptr_;
         }
 
         node *ptr() {
             return ptr_;
         }
 
+        const node *ptr() const {
+            return ptr_;
+        }
+
     };
+
 private:
 
     node head_;
-    std::size_t offset_;
+    size_t offset_;
 
     void add_node(node *new_node, node *prev, node *next) {
         new_node->set_offset(offset_);
@@ -112,10 +104,7 @@ private:
     }
 
     template <typename T, typename U>
-#if (__cplusplus >= 201402L)
-    constexpr
-#endif
-    std::size_t offset_of(U T::*member) const {
+    size_t offset_of(U T::*member) const {
         return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
     }
 
@@ -125,10 +114,9 @@ private:
 
 public:
 
+    using const_iterator = iterator;
+
     template <typename U>
-#if (__cplusplus >= 201402L)
-    constexpr
-#endif
     explicit list(U Type::*member) {
         offset_ = offset_of(member);
     }
@@ -138,19 +126,8 @@ public:
         return *this;
     }
 
-    list &insert(const iterator &pos, Type &new_node) {
-        add_node(list_member(&new_node), pos.node()->prev(), pos.node());
-        return *this;
-    }
-
-    list &insert(Type &pos, Type &new_node) {
-        auto node_member = list_member(&pos);
-        add_node(list_member(&new_node), node_member->prev(), node_member);
-        return *this;
-    }
-
     list &erase(const iterator &it) {
-        remove_node(it.ptr());
+        remove_node(const_cast<node *>(it.ptr()));
         return *this;
     }
 
@@ -171,10 +148,15 @@ public:
         return iterator(&head_);
     }
 
-    void clear() {
+    list &clear() {
         while (not empty()) {
-            remove_node(head_.next());
+            erase(begin());
         }
+        return *this;
+    }
+
+    void reset() {
+        head_.next() = head_.prev() = &head_;
     }
 
 };
