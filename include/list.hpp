@@ -20,6 +20,11 @@ struct list final {
 
     public:
 
+        ~node() {
+            if (next_ != this) next()->prev() = prev();
+            if (prev_ != this) prev()->next() = next();
+        }
+
         node *&next() {
             return next_;
         }

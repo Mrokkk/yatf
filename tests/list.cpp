@@ -41,7 +41,7 @@ void test_adding(list<helper> &head, int s) {
     }
 }
 
-} // namespace anon
+} // namespace
 
 BOOST_AUTO_TEST_SUITE(tests_list_suite)
 
