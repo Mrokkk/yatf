@@ -112,7 +112,10 @@ private:
     }
 
     template <typename T, typename U>
-    constexpr std::size_t offset_of(U T::*member) const {
+#if (__cplusplus >= 201402L)
+    constexpr
+#endif
+    std::size_t offset_of(U T::*member) const {
         return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
     }
 
@@ -123,7 +126,10 @@ private:
 public:
 
     template <typename U>
-    constexpr explicit list(U Type::*member) {
+#if (__cplusplus >= 201402L)
+    constexpr
+#endif
+    explicit list(U Type::*member) {
         offset_ = offset_of(member);
     }
 
