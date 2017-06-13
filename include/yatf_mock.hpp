@@ -29,6 +29,7 @@ template <typename R, typename ...Args>
 class mock_handler final {
 
     void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
+    bool (*matcher_)(const Args &...) = nullptr;
     std::size_t expected_nr_of_calls_ = 0;
     std::size_t actual_nr_of_calls_ = 0;
     return_value<R> return_value_;
@@ -39,6 +40,11 @@ public:
         if (scheduled_assert_) {
             scheduled_assert_(expected_nr_of_calls_, actual_nr_of_calls_);
         }
+    }
+
+    mock_handler &match_args(bool (*matcher)(const Args &...)) {
+        matcher_ = matcher;
+        return *this;
     }
 
     template <typename T = R>
@@ -60,7 +66,14 @@ public:
         scheduled_assert_ = l;
     }
 
-    bool operator()() {
+    bool operator()(const Args &...args) {
+        if (matcher_) {
+            bool is_matched = matcher_(args...);
+            if (is_matched) {
+                ++actual_nr_of_calls_;
+            }
+            return is_matched;
+        }
         ++actual_nr_of_calls_;
         return true;
     }
@@ -103,18 +116,18 @@ public:
     template <typename T = R>
     typename std::enable_if<
         std::is_void<T>::value, T
-    >::type operator()(Args ...) {
+    >::type operator()(Args ...args) {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            (*it)();
+            (*it)(args...);
         }
     }
 
     template <typename T = R>
     typename std::enable_if<
         !std::is_void<T>::value, T
-    >::type operator()(Args ...) {
+    >::type operator()(Args ...args) {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            if ((*it)()) {
+            if ((*it)(args...)) {
                 return it->get_return_value();
             }
         }
