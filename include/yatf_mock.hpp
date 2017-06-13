@@ -9,13 +9,29 @@ namespace yatf {
 namespace detail {
 
 template <typename T>
+class return_value {
+    unsigned char data_[sizeof(T)];
+    T *value_ = reinterpret_cast<T *>(data_);
+public:
+    void set(const T &v) {
+        value_ = new(data_) T(v);
+    }
+    T &get() const {
+        return *value_;
+    }
+};
+
+template <>
+class return_value<void> {
+};
+
+template <typename R, typename ...Args>
 class mock_handler final {
 
     void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
-    unsigned char data_[sizeof(T)];
-    T *value_ = reinterpret_cast<T *>(data_);
     std::size_t expected_nr_of_calls_ = 0;
     std::size_t actual_nr_of_calls_ = 0;
+    return_value<R> return_value_;
 
 public:
 
@@ -25,15 +41,22 @@ public:
         }
     }
 
-    void returns(const T &val) {
-        value_ = new(data_) T(val);
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, mock_handler &
+    >::type returns(const T &val) {
+        return_value_.set(val);
+        return *this;
     }
 
-    T &get_return_value() const {
-        return *value_;
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, T &
+    >::type get_return_value() const {
+        return return_value_.get();
     }
 
-    void set_assertion(void (*l)(std::size_t, std::size_t)) {
+    void schedule_assertion(void (*l)(std::size_t, std::size_t)) {
         scheduled_assert_ = l;
     }
 
@@ -51,36 +74,30 @@ public:
 
 };
 
-template <>
-class mock_handler<void> {
-public:
-    list<mock_handler>::node node;
-};
-
 template <typename T>
 class mock {};
 
 template <typename R, typename ...Args>
 class mock<R(Args...)> final {
 
-    mock_handler<R> default_handler_;
-    list<mock_handler<R>> handlers_;
+    mock_handler<R, Args...> default_handler_;
+    list<mock_handler<R, Args...>> handlers_;
 
 public:
 
-    mock() : handlers_(&mock_handler<R>::node) {
+    mock() : handlers_(&mock_handler<R, Args...>::node) {
     }
 
     void register_handler(void *handler) {
-        handlers_.push_back(*reinterpret_cast<mock_handler<R> *>(handler));
+        handlers_.push_back(*reinterpret_cast<mock_handler<R, Args...> *>(handler));
     }
 
-    mock_handler<R> get_handler() {
+    mock_handler<R, Args...> get_handler() {
         return {};
     }
 
-    mock_handler<R> *cast_handler(void *h) const {
-        return reinterpret_cast<mock_handler<R> *>(h);
+    mock_handler<R, Args...> *cast_handler(void *h) const {
+        return reinterpret_cast<mock_handler<R, Args...> *>(h);
     }
 
     template <typename T = R>
@@ -88,9 +105,7 @@ public:
         std::is_void<T>::value, T
     >::type operator()(Args ...) {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            if ((*it)()) {
-                return it->get_return_value();
-            }
+            (*it)();
         }
     }
 
@@ -116,7 +131,7 @@ public:
 #define REQUIRE_CALL(name) \
     auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); temp_mock = (void *)&YATF_UNIQUE_NAME(__mock_handler); \
     name.register_handler(temp_mock); \
-    name.cast_handler(temp_mock)->set_assertion([](std::size_t expected, std::size_t actual) { \
+    name.cast_handler(temp_mock)->schedule_assertion([](std::size_t expected, std::size_t actual) { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(expected, actual)) { \
             yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " " << #name << ": expected to be called: " << expected << "; actual: " << actual << "\n"; \
         } \
