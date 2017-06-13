@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include "list.hpp"
+#include "printer.hpp"
 
 namespace yatf {
 
