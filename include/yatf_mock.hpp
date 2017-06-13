@@ -11,7 +11,7 @@ namespace detail {
 template <typename T>
 class mock_handler final {
 
-    void (*lambda_)(std::size_t, std::size_t) = nullptr;
+    void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
     unsigned char data_[sizeof(T)];
     T *value_ = reinterpret_cast<T *>(data_);
     std::size_t expected_nr_of_calls_ = 0;
@@ -20,29 +20,26 @@ class mock_handler final {
 public:
 
     ~mock_handler() {
-        if (expected_nr_of_calls_ != actual_nr_of_calls_) {
-            printer_ << "assertion failed: actual: " << actual_nr_of_calls_ << "; expected: " << expected_nr_of_calls_ << "\n";
-        }
-        if (lambda_) {
-            lambda_(expected_nr_of_calls_, actual_nr_of_calls_);
+        if (scheduled_assert_) {
+            scheduled_assert_(expected_nr_of_calls_, actual_nr_of_calls_);
         }
     }
 
-    void set(const T &val) {
+    void returns(const T &val) {
         value_ = new(data_) T(val);
     }
 
-    T &get() const {
+    T &get_return_value() const {
         return *value_;
     }
 
-    void set_lambda_(void (*l)(std::size_t, std::size_t)) {
-        lambda_ = l;
+    void set_assertion(void (*l)(std::size_t, std::size_t)) {
+        scheduled_assert_ = l;
     }
 
-    T &operator()() {
+    bool operator()() {
         ++actual_nr_of_calls_;
-        return get();
+        return true;
     }
 
     mock_handler &expect_call(std::size_t nr = 1) {
@@ -91,7 +88,9 @@ public:
         std::is_void<T>::value, T
     >::type operator()(Args ...) {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            (*it)();
+            if ((*it)()) {
+                return it->get_return_value();
+            }
         }
     }
 
@@ -100,16 +99,11 @@ public:
         !std::is_void<T>::value, T
     >::type operator()(Args ...) {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            (*it)();
+            if ((*it)()) {
+                return it->get_return_value();
+            }
         }
-        return default_handler_.get();
-    }
-
-    template <typename T = R>
-    typename std::enable_if<
-        !std::is_void<T>::value, void
-    >::type set_default_return_value(const T &val) {
-        default_handler_.set(val);
+        return default_handler_.get_return_value();
     }
 
 };
@@ -122,8 +116,10 @@ public:
 #define REQUIRE_CALL(name) \
     auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); temp_mock = (void *)&YATF_UNIQUE_NAME(__mock_handler); \
     name.register_handler(temp_mock); \
-    name.cast_handler(temp_mock)->set_lambda_([](std::size_t expected, std::size_t actual) { \
-        yatf::detail::test_session::get().current_test_case().assert_eq(expected, actual); \
+    name.cast_handler(temp_mock)->set_assertion([](std::size_t expected, std::size_t actual) { \
+        if (!yatf::detail::test_session::get().current_test_case().assert_eq(expected, actual)) { \
+            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " " << #name << ": expected to be called: " << expected << "; actual: " << actual << "\n"; \
+        } \
     }); \
     name.cast_handler(temp_mock)->expect_call()
 
