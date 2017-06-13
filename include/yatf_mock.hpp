@@ -11,6 +11,7 @@ namespace detail {
 template <typename T>
 class mock_handler final {
 
+    void (*lambda_)(std::size_t, std::size_t) = nullptr;
     unsigned char data_[sizeof(T)];
     T *value_ = reinterpret_cast<T *>(data_);
     std::size_t expected_nr_of_calls_ = 0;
@@ -22,6 +23,9 @@ public:
         if (expected_nr_of_calls_ != actual_nr_of_calls_) {
             printer_ << "assertion failed: actual: " << actual_nr_of_calls_ << "; expected: " << expected_nr_of_calls_ << "\n";
         }
+        if (lambda_) {
+            lambda_(expected_nr_of_calls_, actual_nr_of_calls_);
+        }
     }
 
     void set(const T &val) {
@@ -30,6 +34,10 @@ public:
 
     T &get() const {
         return *value_;
+    }
+
+    void set_lambda_(void (*l)(std::size_t, std::size_t)) {
+        lambda_ = l;
     }
 
     T &operator()() {
@@ -114,6 +122,9 @@ public:
 #define REQUIRE_CALL(name) \
     auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); temp_mock = (void *)&YATF_UNIQUE_NAME(__mock_handler); \
     name.register_handler(temp_mock); \
+    name.cast_handler(temp_mock)->set_lambda_([](std::size_t expected, std::size_t actual) { \
+        yatf::detail::test_session::get().current_test_case().assert_eq(expected, actual); \
+    }); \
     name.cast_handler(temp_mock)->expect_call()
 
 } // namespace yatf
