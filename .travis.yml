@@ -18,8 +18,22 @@ matrix:
 
         - env:
             - IMAGE=mrokkk/devel
+            - JOB=coverage
+            - COMPILER=clang++
+          services:
+            - docker
+
+        - env:
+            - IMAGE=mrokkk/devel
             - JOB=sanitizers
             - COMPILER=g++
+          services:
+            - docker
+
+        - env:
+            - IMAGE=mrokkk/devel
+            - JOB=sanitizers
+            - COMPILER=clang++
           services:
             - docker
 
@@ -32,7 +46,13 @@ matrix:
 
         - env:
             - IMAGE=mrokkk/devel
-            - JOB=coverage
+            - JOB=valgrind
+            - COMPILER=clang++
+          services:
+            - docker
+
+        - env:
+            - IMAGE=mrokkk/devel
             - COMPILER=clang++
             - CPP_STANDARD=c++11
           services:
@@ -40,7 +60,6 @@ matrix:
 
         - env:
             - IMAGE=mrokkk/devel
-            - JOB=coverage
             - COMPILER=clang++
             - CPP_STANDARD=c++14
           services:
@@ -48,7 +67,6 @@ matrix:
 
         - env:
             - IMAGE=mrokkk/devel
-            - JOB=coverage
             - COMPILER=clang++
             - CPP_STANDARD=c++1z
           services:
