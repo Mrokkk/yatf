@@ -37,7 +37,7 @@ class mock_handler final {
     std::size_t actual_nr_of_calls_ = 0;
     return_value<R> return_value_;
 
-    typename list<mock_handler>::node node;
+    typename list<mock_handler>::node node_;
 
     template <typename T = R>
     typename std::enable_if<
@@ -103,14 +103,14 @@ class mock<R(Args...)> final {
 
 public:
 
-    mock() : handlers_(&mock_handler<R, Args...>::node) {
+    mock() : handlers_(&mock_handler<R, Args...>::node_) {
     }
 
     void register_handler(void *handler) {
         handlers_.push_back(*reinterpret_cast<mock_handler<R, Args...> *>(handler));
     }
 
-    mock_handler<R, Args...> get_handler() {
+    mock_handler<R, Args...> get_handler() const {
         return {};
     }
 
@@ -147,15 +147,15 @@ public:
     yatf::detail::mock<signature> name;
 
 #define REQUIRE_CALL(name) \
-    auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); temp_mock = (void *)&YATF_UNIQUE_NAME(__mock_handler); \
-    name.register_handler(temp_mock); \
-    name.cast_handler(temp_mock)->schedule_assertion([](std::size_t expected, std::size_t actual) { \
+    auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); \
+    name.register_handler(&YATF_UNIQUE_NAME(__mock_handler)); \
+    YATF_UNIQUE_NAME(__mock_handler).schedule_assertion([](std::size_t expected, std::size_t actual) { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(expected, actual)) { \
             yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " " << #name \
                                    << ": expected to be called: " << expected << "; actual: " << actual << "\n"; \
         } \
     }); \
-    (void)(*name.cast_handler(temp_mock))
+    (void)YATF_UNIQUE_NAME(__mock_handler)
 
 } // namespace yatf
 
