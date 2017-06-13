@@ -20,7 +20,7 @@ public:
 
     ~mock_handler() {
         if (expected_nr_of_calls_ != actual_nr_of_calls_) {
-            // TODO
+            printer_ << "assertion failed: actual: " << actual_nr_of_calls_ << "; expected: " << expected_nr_of_calls_ << "\n";
         }
     }
 
@@ -34,6 +34,7 @@ public:
 
     T &operator()() {
         ++actual_nr_of_calls_;
+        return get();
     }
 
     mock_handler &expect_call(std::size_t nr = 1) {
@@ -81,14 +82,18 @@ public:
     typename std::enable_if<
         std::is_void<T>::value, T
     >::type operator()(Args ...) {
-        // TODO
+        for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
+            (*it)();
+        }
     }
 
     template <typename T = R>
     typename std::enable_if<
         !std::is_void<T>::value, T
     >::type operator()(Args ...) {
-        // TODO
+        for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
+            (*it)();
+        }
         return default_handler_.get();
     }
 
