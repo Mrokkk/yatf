@@ -70,9 +70,6 @@ struct test_session final {
         std::size_t failed = 0;
         void *temp_mock;
 
-        test_case() {
-        }
-
         bool assert_true(bool cond) {
             ++assertions;
             if (!cond) ++failed;
@@ -180,7 +177,7 @@ public:
     }
 
     void register_test(test_case *t) {
-        tests_number_++;
+        ++tests_number_;
         test_cases_.push_back(*t);
     }
 
@@ -196,7 +193,7 @@ public:
             current_test_case_ = &test;
             test.test_body();
             if (test.failed)
-                failed++;
+                ++failed;
             test_result(test);
         }
         test_session_end_message(failed);
@@ -217,7 +214,7 @@ template <>
 inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs) {
     ++assertions;
     auto cond = compare_strings(lhs, rhs) == 0;
-    if (!cond) failed++;
+    if (!cond) ++failed;
     return cond;
 }
 
