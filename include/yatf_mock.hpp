@@ -9,7 +9,7 @@ namespace yatf {
 namespace detail {
 
 template <typename T>
-class return_value {
+class return_value final {
     unsigned char data_[sizeof(T)];
     T *value_ = reinterpret_cast<T *>(data_);
 public:
@@ -22,14 +22,14 @@ public:
 };
 
 template <>
-class return_value<void> {
+class return_value<void> final {
 };
 
 template <typename R, typename ...Args>
 class mock_handler final {
 
     void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
-    bool (*matcher_)(const Args &...) = nullptr;
+    bool (*matcher_)(Args ...) = nullptr;
     std::size_t expected_nr_of_calls_ = 0;
     std::size_t actual_nr_of_calls_ = 0;
     return_value<R> return_value_;
@@ -42,7 +42,7 @@ public:
         }
     }
 
-    mock_handler &match_args(bool (*matcher)(const Args &...)) {
+    mock_handler &match_args(bool (*matcher)(Args ...)) {
         matcher_ = matcher;
         return *this;
     }
@@ -50,7 +50,7 @@ public:
     template <typename T = R>
     typename std::enable_if<
         !std::is_void<T>::value, mock_handler &
-    >::type returns(const T &val) {
+    >::type will_return(const T &val) {
         return_value_.set(val);
         return *this;
     }
@@ -88,7 +88,7 @@ public:
 };
 
 template <typename T>
-class mock {};
+class mock final {};
 
 template <typename R, typename ...Args>
 class mock<R(Args...)> final {
@@ -146,7 +146,8 @@ public:
     name.register_handler(temp_mock); \
     name.cast_handler(temp_mock)->schedule_assertion([](std::size_t expected, std::size_t actual) { \
         if (!yatf::detail::test_session::get().current_test_case().assert_eq(expected, actual)) { \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " " << #name << ": expected to be called: " << expected << "; actual: " << actual << "\n"; \
+            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " " << #name \
+                                   << ": expected to be called: " << expected << "; actual: " << actual << "\n"; \
         } \
     }); \
     name.cast_handler(temp_mock)->expect_call()
