@@ -25,14 +25,38 @@ template <>
 class return_value<void> final {
 };
 
+template <typename T>
+class mock;
+
 template <typename R, typename ...Args>
 class mock_handler final {
 
     void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
     bool (*matcher_)(Args ...) = nullptr;
-    std::size_t expected_nr_of_calls_ = 0;
+    std::size_t expected_nr_of_calls_ = 1;
     std::size_t actual_nr_of_calls_ = 0;
     return_value<R> return_value_;
+
+    typename list<mock_handler>::node node;
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, T &
+    >::type get_return_value() const {
+        return return_value_.get();
+    }
+
+    bool operator()(const Args &...args) {
+        if (matcher_) {
+            bool is_matched = matcher_(args...);
+            if (is_matched) {
+                ++actual_nr_of_calls_;
+            }
+            return is_matched;
+        }
+        ++actual_nr_of_calls_;
+        return true;
+    }
 
 public:
 
@@ -55,35 +79,16 @@ public:
         return *this;
     }
 
-    template <typename T = R>
-    typename std::enable_if<
-        !std::is_void<T>::value, T &
-    >::type get_return_value() const {
-        return return_value_.get();
-    }
-
     void schedule_assertion(void (*l)(std::size_t, std::size_t)) {
         scheduled_assert_ = l;
     }
 
-    bool operator()(const Args &...args) {
-        if (matcher_) {
-            bool is_matched = matcher_(args...);
-            if (is_matched) {
-                ++actual_nr_of_calls_;
-            }
-            return is_matched;
-        }
-        ++actual_nr_of_calls_;
-        return true;
-    }
-
-    mock_handler &expect_call(std::size_t nr = 1) {
+    mock_handler &times(std::size_t nr = 1) {
         expected_nr_of_calls_ = nr;
         return *this;
     }
 
-    typename list<mock_handler>::node node;
+    friend mock<R(Args...)>;
 
 };
 
@@ -150,7 +155,7 @@ public:
                                    << ": expected to be called: " << expected << "; actual: " << actual << "\n"; \
         } \
     }); \
-    name.cast_handler(temp_mock)->expect_call()
+    (void)(*name.cast_handler(temp_mock))
 
 } // namespace yatf
 
