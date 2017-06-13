@@ -144,16 +144,13 @@ public:
 } // namespace detail
 
 #define MOCK(signature, name) \
-    yatf::detail::mock<signature> name;
+    yatf::detail::mock<signature> name
 
 #define REQUIRE_CALL(name) \
     auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); \
     name.register_handler(&YATF_UNIQUE_NAME(__mock_handler)); \
     YATF_UNIQUE_NAME(__mock_handler).schedule_assertion([](std::size_t expected, std::size_t actual) { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_eq(expected, actual)) { \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " " << #name \
-                                   << ": expected to be called: " << expected << "; actual: " << actual << "\n"; \
-        } \
+        yatf::detail::test_session::get().current_test_case().require_call(#name, expected, actual, __FILE__, __LINE__); \
     }); \
     (void)YATF_UNIQUE_NAME(__mock_handler)
 

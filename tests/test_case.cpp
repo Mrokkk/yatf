@@ -10,16 +10,16 @@ BOOST_AUTO_TEST_SUITE(test_case_suite)
 
 BOOST_FIXTURE_TEST_CASE(assert_works, yatf_fixture) {
     dummy_test_case tc{"suite", "name"};
-    BOOST_CHECK(tc.assert_eq(1, 1));
+    tc.require_eq(1, 1, "", "", "", 0);
     BOOST_CHECK_EQUAL(tc.failed, 0);
     BOOST_CHECK_EQUAL(tc.assertions, 1);
-    BOOST_CHECK(tc.assert_true(true));
+    tc.require_true(true, "", "", 0);
     BOOST_CHECK_EQUAL(tc.failed, 0);
     BOOST_CHECK_EQUAL(tc.assertions, 2);
-    BOOST_CHECK(!tc.assert_eq(1, 0));
+    tc.require_eq(1, 0, "", "", "", 0);
     BOOST_CHECK_EQUAL(tc.failed, 1);
     BOOST_CHECK_EQUAL(tc.assertions, 3);
-    BOOST_CHECK(!tc.assert_true(false));
+    tc.require_true(false, "", "", 0);
     BOOST_CHECK_EQUAL(tc.failed, 2);
     BOOST_CHECK_EQUAL(tc.assertions, 4);
 }

@@ -69,19 +69,53 @@ struct test_session final {
         std::size_t assertions = 0;
         std::size_t failed = 0;
 
-        bool assert_true(bool cond) {
+        void require_true(bool condition, const char *condition_str, const char *file, int line) {
             ++assertions;
-            if (!cond) ++failed;
-            return cond;
+            if (!condition) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is false\n";
+            }
+        }
+
+        void require_false(bool condition, const char *condition_str, const char *file, int line) {
+            ++assertions;
+            if (condition) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is true\n";
+            }
         }
 
         template <typename T1, typename T2>
-        bool assert_eq(T1 lhs, T2 rhs) {
-            (void)lhs; (void)rhs; // for gcc
+        void require_eq(const T1 &lhs, const T2 &rhs, const char *lhs_str, const char *rhs_str,
+                const char *file, int line) {
             ++assertions;
             bool cond = (lhs == rhs);
-            if (!cond) ++failed;
-            return cond;
+            if (!cond) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs_str
+                         << "\' isn't \'" << rhs_str << "\': " << lhs << " != " << rhs << "\n";
+            }
+        }
+
+        void require_eq(const char *lhs, const char *rhs, const char *, const char *, const char *file, int line) {
+            ++assertions;
+            bool cond = compare_strings(lhs, rhs) == 0;
+            if (!cond) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs
+                         << "\' isn't \'" << rhs << "\n";
+            }
+        }
+
+        void require_call(const char *mock_name, std::size_t expected_nr_of_calls,
+                std::size_t actual_nr_of_calls, const char *file, int line) {
+            ++assertions;
+            if (expected_nr_of_calls != actual_nr_of_calls) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " " << mock_name
+                         << ": expected to be called: " << expected_nr_of_calls << "; actual: "
+                         << actual_nr_of_calls << "\n";
+            }
         }
 
         virtual void test_body() = 0;
@@ -209,35 +243,16 @@ public:
 
 };
 
-template <>
-inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs) {
-    ++assertions;
-    auto cond = compare_strings(lhs, rhs) == 0;
-    if (!cond) ++failed;
-    return cond;
-}
-
 } // namespace detail
 
 #define REQUIRE(cond) \
-    do { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_true(cond)) \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #cond << "\' is false\n"; \
-    } while (0)
+    yatf::detail::test_session::get().current_test_case().require_true(cond, #cond, __FILE__, __LINE__)
 
 #define REQUIRE_FALSE(cond) \
-    do { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_true(!(cond))) \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #cond << "\' is true\n"; \
-    } while (0)
+    yatf::detail::test_session::get().current_test_case().require_false(cond, #cond, __FILE__, __LINE__)
 
 #define REQUIRE_EQ(lhs, rhs) \
-    do { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #lhs << "\' isn't \'" << #rhs << "\': "; \
-            yatf::detail::printer_ << lhs << " != " << rhs << "\n"; \
-        } \
-    } while (0)
+    yatf::detail::test_session::get().current_test_case().require_eq(lhs, rhs, #lhs, #rhs, __FILE__, __LINE__)
 
 #define YATF_CONCAT_(x,y) x##y
 #define YATF_CONCAT(x,y) YATF_CONCAT_(x, y)
