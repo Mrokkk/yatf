@@ -71,6 +71,10 @@ struct list final {
             return *ptr_->entry();
         }
 
+        Type *operator->() {
+            return ptr_->entry();
+        }
+
         bool operator!=(const iterator &it) {
             return it.ptr_ != ptr_;
         }
