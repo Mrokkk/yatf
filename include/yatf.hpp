@@ -138,8 +138,8 @@ struct list final {
         node *next_ = this, *prev_ = this;
         size_t offset_ = 0;
 
-        Type *this_offset(int offset) {
-            return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
+        Type *this_offset() {
+            return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) - offset_);
         }
 
     public:
@@ -162,7 +162,7 @@ struct list final {
         }
 
         Type *entry() {
-            return this_offset(-offset_);
+            return this_offset();
         }
 
         void set_offset(size_t offset) {
@@ -170,9 +170,6 @@ struct list final {
         }
 
     };
-
-    using value_type = Type;
-    using node_type = node;
 
     class iterator final {
 
@@ -220,8 +217,7 @@ private:
 
     void add_node(node *new_node, node *prev, node *next) {
         new_node->set_offset(offset_);
-        next->prev() = new_node;
-        prev->next() = new_node;
+        next->prev() = prev->next() = new_node;
         new_node->next() = next;
         new_node->prev() = prev;
     }
@@ -453,8 +449,9 @@ public:
             test_start_message(test);
             current_test_case_ = &test;
             test.test_body();
-            if (test.failed)
+            if (test.failed) {
                 ++failed;
+            }
             test_result(test);
         }
         test_session_end_message(failed);
@@ -501,7 +498,6 @@ class mock_handler final {
     std::size_t expected_nr_of_calls_ = 1;
     std::size_t actual_nr_of_calls_ = 0;
     return_value<R> return_value_;
-
     typename list<mock_handler>::node node_;
 
     template <typename T = R>
