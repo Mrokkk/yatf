@@ -13,6 +13,8 @@ class return_value final {
     unsigned char data_[sizeof(T)];
     T *value_ = reinterpret_cast<T *>(data_);
 public:
+    return_value() : data_() {
+    }
     void set(const T &v) {
         value_ = new(data_) T(v);
     }
