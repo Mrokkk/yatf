@@ -1,9 +1,7 @@
 #pragma once
 
+#include <cstddef>
 #include <type_traits>
-#include "list.hpp"
-#include "printer.hpp"
-#include "yatf_mock.hpp"
 
 struct yatf_fixture;
 
@@ -17,6 +15,8 @@ struct config final {
     explicit config(bool color, bool oneliners, bool fails_only)
         : color(color), oneliners(oneliners), fails_only(fails_only) {}
 };
+
+using printf_t = int (*)(const char *, ...);
 
 namespace detail {
 
@@ -44,6 +44,235 @@ inline void copy_string(const char *src, char *dest) {
     }
     *dest = 0;
 }
+
+extern printf_t printf_;
+
+struct printer final {
+
+    enum class cursor_movement { up };
+    enum class color { red, green, reset };
+
+    template <typename T>
+    typename std::enable_if<
+        std::is_signed<T>::value, printer &
+    >::type operator<<(T a) {
+        printf_("%d", a);
+        return *this;
+    }
+
+    template <typename T>
+    typename std::enable_if<
+        std::is_unsigned<T>::value, printer &
+    >::type operator<<(T a) {
+        printf_("%u", a);
+        return *this;
+    }
+
+    template <typename T>
+    typename std::enable_if<
+        std::is_same<T, char *>::value ||
+        std::is_same<T, const char *>::value, printer &
+    >::type operator<<(T str) {
+        printf_(str);
+        return *this;
+    }
+
+    printer &operator<<(char c) {
+        printf_("%c", c);
+        return *this;
+    }
+
+    template <typename T>
+    typename std::enable_if<
+        std::is_pointer<T>::value &&
+        !std::is_same<T, char *>::value &&
+        !std::is_same<T, const char *>::value,
+        printer &
+    >::type operator<<(T a) {
+        printf_("0x%x", reinterpret_cast<unsigned long>(a));
+        return *this;
+    }
+
+    printer &operator<<(std::nullptr_t) {
+        printf_("NULL");
+        return *this;
+    }
+
+    printer &operator<<(color c) {
+        switch (c) {
+            case color::red:
+                printf_("\e[31m");
+                break;
+            case color::green:
+                printf_("\e[32m");
+                break;
+            case color::reset:
+                printf_("\e[0m");
+                break;
+            default:
+                break;
+        }
+        return *this;
+    }
+
+    printer &operator<<(cursor_movement c) {
+        switch (c) {
+            case cursor_movement::up:
+                printf_("\033[1A");
+                break;
+            default:
+                break;
+        }
+        return *this;
+    }
+
+};
+
+extern printer printer_;
+
+template <typename Type>
+struct list final {
+
+    class node {
+
+        node *next_ = this, *prev_ = this;
+        size_t offset_ = 0;
+
+        Type *this_offset(int offset) {
+            return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
+        }
+
+    public:
+
+        ~node() {
+            if (next_ != this) next()->prev() = prev();
+            if (prev_ != this) prev()->next() = next();
+        }
+
+        node *&next() {
+            return next_;
+        }
+
+        node *&prev() {
+            return prev_;
+        }
+
+        const node *prev() const {
+            return prev_;
+        }
+
+        Type *entry() {
+            return this_offset(-offset_);
+        }
+
+        void set_offset(size_t offset) {
+            offset_ = offset;
+        }
+
+    };
+
+    using value_type = Type;
+    using node_type = node;
+
+    class iterator final {
+
+        node *ptr_ = nullptr;
+
+    public:
+
+        explicit iterator(node *n) : ptr_(n) {
+        }
+
+        iterator(const iterator &it) : ptr_(it.ptr_) {
+        }
+
+        iterator &operator++() {
+            ptr_ = ptr_->next();
+            return *this;
+        }
+
+        Type &operator*() {
+            return *ptr_->entry();
+        }
+
+        Type *operator->() {
+            return ptr_->entry();
+        }
+
+        bool operator!=(const iterator &it) {
+            return it.ptr_ != ptr_;
+        }
+
+        node *ptr() {
+            return ptr_;
+        }
+
+        const node *ptr() const {
+            return ptr_;
+        }
+
+    };
+
+private:
+
+    node head_;
+    size_t offset_;
+
+    void add_node(node *new_node, node *prev, node *next) {
+        new_node->set_offset(offset_);
+        next->prev() = new_node;
+        prev->next() = new_node;
+        new_node->next() = next;
+        new_node->prev() = prev;
+    }
+
+    void remove_node(node *n) {
+        n->next()->prev() = n->prev();
+        n->prev()->next() = n->next();
+        n->prev() = n->next() = n;
+    }
+
+    template <typename T, typename U>
+    size_t offset_of(U T::*member) const {
+        return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
+    }
+
+    node *list_member(Type *obj) {
+        return reinterpret_cast<node *>(reinterpret_cast<char *>(obj) + offset_);
+    }
+
+public:
+
+    using const_iterator = iterator;
+
+    template <typename U>
+    explicit list(U Type::*member) {
+        offset_ = offset_of(member);
+    }
+
+    list &push_back(Type &new_node) {
+        add_node(list_member(&new_node), head_.prev(), &head_);
+        return *this;
+    }
+
+    list &erase(const iterator &it) {
+        remove_node(const_cast<node *>(it.ptr()));
+        return *this;
+    }
+
+    bool empty() const {
+        return head_.prev() == &head_;
+    }
+
+    iterator begin() {
+        return iterator(head_.next());
+    }
+
+    iterator end() {
+        return iterator(&head_);
+    }
+
+};
 
 struct test_session final {
 
@@ -242,6 +471,137 @@ public:
 
 };
 
+template <typename T>
+class return_value final {
+    unsigned char data_[sizeof(T)];
+    T *value_ = reinterpret_cast<T *>(data_);
+public:
+    return_value() : data_() {
+    }
+    void set(const T &v) {
+        value_ = new(data_) T(v);
+    }
+    T &get() const {
+        return *value_;
+    }
+};
+
+template <>
+class return_value<void> final {
+};
+
+template <typename T>
+class mock;
+
+template <typename R, typename ...Args>
+class mock_handler final {
+
+    void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
+    bool (*matcher_)(Args ...) = nullptr;
+    std::size_t expected_nr_of_calls_ = 1;
+    std::size_t actual_nr_of_calls_ = 0;
+    return_value<R> return_value_;
+
+    typename list<mock_handler>::node node_;
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, T &
+    >::type get_return_value() const {
+        return return_value_.get();
+    }
+
+    bool operator()(const Args &...args) {
+        if (matcher_) {
+            bool is_matched = matcher_(args...);
+            if (is_matched) {
+                ++actual_nr_of_calls_;
+            }
+            return is_matched;
+        }
+        ++actual_nr_of_calls_;
+        return true;
+    }
+
+public:
+
+    ~mock_handler() {
+        if (scheduled_assert_) {
+            scheduled_assert_(expected_nr_of_calls_, actual_nr_of_calls_);
+        }
+    }
+
+    mock_handler &match_args(bool (*matcher)(Args ...)) {
+        matcher_ = matcher;
+        return *this;
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, mock_handler &
+    >::type will_return(const T &val) {
+        return_value_.set(val);
+        return *this;
+    }
+
+    void schedule_assertion(void (*l)(std::size_t, std::size_t)) {
+        scheduled_assert_ = l;
+    }
+
+    mock_handler &times(std::size_t nr = 1) {
+        expected_nr_of_calls_ = nr;
+        return *this;
+    }
+
+    friend mock<R(Args...)>;
+
+};
+
+template <typename T>
+class mock final {};
+
+template <typename R, typename ...Args>
+class mock<R(Args...)> final {
+
+    mock_handler<R, Args...> default_handler_;
+    list<mock_handler<R, Args...>> handlers_;
+
+public:
+
+    mock() : handlers_(&mock_handler<R, Args...>::node_) {
+    }
+
+    void register_handler(mock_handler<R, Args...> &handler) {
+        handlers_.push_back(handler);
+    }
+
+    mock_handler<R, Args...> get_handler() const {
+        return {};
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        std::is_void<T>::value, T
+    >::type operator()(Args ...args) {
+        for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
+            (*it)(args...);
+        }
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, T
+    >::type operator()(Args ...args) {
+        for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
+            if ((*it)(args...)) {
+                return it->get_return_value();
+            }
+        }
+        return default_handler_.get_return_value();
+    }
+
+};
+
 } // namespace detail
 
 #define REQUIRE(cond) \
@@ -275,6 +635,17 @@ public:
 
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
 #define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
+
+#define MOCK(signature, name) \
+    yatf::detail::mock<signature> name
+
+#define REQUIRE_CALL(name) \
+    auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); \
+    name.register_handler(YATF_UNIQUE_NAME(__mock_handler)); \
+    YATF_UNIQUE_NAME(__mock_handler).schedule_assertion([](std::size_t expected, std::size_t actual) { \
+        yatf::detail::test_session::get().current_test_case().require_call(#name, expected, actual, __FILE__, __LINE__); \
+    }); \
+    (void)YATF_UNIQUE_NAME(__mock_handler)
 
 #ifdef YATF_MAIN
 

@@ -29,6 +29,12 @@ BOOST_FIXTURE_TEST_CASE(assert_works, yatf_fixture) {
     REQUIRE_FALSE(false);
     BOOST_CHECK_EQUAL(tc.failed, 3);
     BOOST_CHECK_EQUAL(tc.assertions, 6);
+    REQUIRE_EQ("hello", "world");
+    BOOST_CHECK_EQUAL(tc.failed, 4);
+    BOOST_CHECK_EQUAL(tc.assertions, 7);
+    REQUIRE_EQ("hello", "hello");
+    BOOST_CHECK_EQUAL(tc.failed, 4);
+    BOOST_CHECK_EQUAL(tc.assertions, 8);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_can_pass, yatf_fixture) {
@@ -99,7 +105,7 @@ TEST(suite, name) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_can_call, yatf_fixture) {
-    auto &tc = suite_name95;
+    auto &tc = suite_name101;
     test_session::get().current_test_case(&tc);
     tc.test_body();
     auto result = tc.failed;
