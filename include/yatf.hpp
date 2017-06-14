@@ -60,7 +60,6 @@ struct test_session final {
 
     class test_case {
 
-        using fn = void(*)();
         list<test_case>::node node_;
 
     public:

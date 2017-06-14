@@ -106,16 +106,12 @@ public:
     mock() : handlers_(&mock_handler<R, Args...>::node_) {
     }
 
-    void register_handler(void *handler) {
-        handlers_.push_back(*reinterpret_cast<mock_handler<R, Args...> *>(handler));
+    void register_handler(mock_handler<R, Args...> &handler) {
+        handlers_.push_back(handler);
     }
 
     mock_handler<R, Args...> get_handler() const {
         return {};
-    }
-
-    mock_handler<R, Args...> *cast_handler(void *h) const {
-        return reinterpret_cast<mock_handler<R, Args...> *>(h);
     }
 
     template <typename T = R>
@@ -148,7 +144,7 @@ public:
 
 #define REQUIRE_CALL(name) \
     auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); \
-    name.register_handler(&YATF_UNIQUE_NAME(__mock_handler)); \
+    name.register_handler(YATF_UNIQUE_NAME(__mock_handler)); \
     YATF_UNIQUE_NAME(__mock_handler).schedule_assertion([](std::size_t expected, std::size_t actual) { \
         yatf::detail::test_session::get().current_test_case().require_call(#name, expected, actual, __FILE__, __LINE__); \
     }); \

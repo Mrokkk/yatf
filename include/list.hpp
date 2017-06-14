@@ -71,10 +71,6 @@ struct list final {
             return *ptr_->entry();
         }
 
-        Type *operator->() {
-            return ptr_->entry();
-        }
-
         bool operator!=(const iterator &it) {
             return it.ptr_ != ptr_;
         }
@@ -136,11 +132,6 @@ public:
         return *this;
     }
 
-    list &erase(Type &n) {
-        remove_node(list_member(&n));
-        return *this;
-    }
-
     bool empty() const {
         return head_.prev() == &head_;
     }
@@ -158,10 +149,6 @@ public:
             erase(begin());
         }
         return *this;
-    }
-
-    void reset() {
-        head_.next() = head_.prev() = &head_;
     }
 
 };
