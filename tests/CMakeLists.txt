@@ -2,7 +2,7 @@ include(cmake-utils/utils.cmake)
 include(cmake-utils/coverage.cmake)
 include(cmake-utils/sanitizers.cmake)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=${CPP_STD} -Wall -Wextra -Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=${CPP_STD} -Wall -Wextra -Werror -fno-exceptions")
 
 if(SANITIZERS)
     add_sanitizers_flags()

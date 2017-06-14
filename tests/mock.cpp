@@ -153,6 +153,32 @@ BOOST_FIXTURE_TEST_CASE(mock_can_match_arguments, yatf_fixture) {
         auto result = dummy_mock3();
         BOOST_CHECK_EQUAL(result, int());
     }
+    mock<void()> dummy_mock4;
+    {
+        auto handler = dummy_mock4.get_handler();
+        dummy_mock4.register_handler(handler);
+        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+                BOOST_CHECK_EQUAL(expected, 1);
+                BOOST_CHECK_EQUAL(actual, 1);
+        });
+        handler.match_args([]() {
+            return true;
+        });
+        dummy_mock4();
+    }
+    mock<void()> dummy_mock5;
+    {
+        auto handler = dummy_mock5.get_handler();
+        dummy_mock5.register_handler(handler);
+        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+                BOOST_CHECK_EQUAL(expected, 1);
+                BOOST_CHECK_EQUAL(actual, 0);
+        });
+        handler.match_args([]() {
+            return false;
+        });
+        dummy_mock5();
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
