@@ -5,6 +5,7 @@
 #include <memory>
 
 struct dummy_test_case : public yatf::detail::test_session::test_case {
+
     explicit dummy_test_case(const char *sn, const char *tn) {
         suite_name = sn;
         test_name = tn;
@@ -25,10 +26,11 @@ struct yatf_fixture {
     yatf::detail::printer printer;
     yatf_fixture() {
         reset_buffer();
-        yatf::detail::test_session::instance_.test_cases_.remove();
         yatf::detail::test_session::instance_.test_cases_.push_back(dummy_tc);
     }
-    ~yatf_fixture() { reset_buffer(); }
+    ~yatf_fixture() {
+        reset_buffer();
+    }
 };
 
 namespace yatf {

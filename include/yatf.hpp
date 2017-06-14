@@ -1,12 +1,11 @@
 #pragma once
 
+#include <cstddef>
 #include <type_traits>
 
 struct yatf_fixture;
 
 namespace yatf {
-
-using printf_t = int (*)(const char *, ...);
 
 struct config final {
     bool color = true;
@@ -17,9 +16,9 @@ struct config final {
         : color(color), oneliners(oneliners), fails_only(fails_only) {}
 };
 
-namespace detail {
+using printf_t = int (*)(const char *, ...);
 
-extern printf_t printf_;
+namespace detail {
 
 struct empty_fixture {};
 
@@ -45,6 +44,8 @@ inline void copy_string(const char *src, char *dest) {
     }
     *dest = 0;
 }
+
+extern printf_t printf_;
 
 struct printer final {
 
@@ -108,6 +109,8 @@ struct printer final {
             case color::reset:
                 printf_("\e[0m");
                 break;
+            default:
+                break;
         }
         return *this;
     }
@@ -116,6 +119,8 @@ struct printer final {
         switch (c) {
             case cursor_movement::up:
                 printf_("\033[1A");
+                break;
+            default:
                 break;
         }
         return *this;
@@ -126,88 +131,145 @@ struct printer final {
 extern printer printer_;
 
 template <typename Type>
-class list final {
+struct list final {
 
-    list *next_ = this, *prev_ = this;
-    std::size_t offset_;
+    class node {
 
-    void add_element(list *new_element, list *prev, list *next) {
-        next->prev_ = new_element;
-        prev->next_ = new_element;
-        new_element->next_ = next;
-        new_element->prev_ = prev;
+        node *next_ = this, *prev_ = this;
+        size_t offset_ = 0;
+
+        Type *this_offset(int offset) {
+            return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
+        }
+
+    public:
+
+        ~node() {
+            if (next_ != this) next()->prev() = prev();
+            if (prev_ != this) prev()->next() = next();
+        }
+
+        node *&next() {
+            return next_;
+        }
+
+        node *&prev() {
+            return prev_;
+        }
+
+        const node *prev() const {
+            return prev_;
+        }
+
+        Type *entry() {
+            return this_offset(-offset_);
+        }
+
+        void set_offset(size_t offset) {
+            offset_ = offset;
+        }
+
+    };
+
+    using value_type = Type;
+    using node_type = node;
+
+    class iterator final {
+
+        node *ptr_ = nullptr;
+
+    public:
+
+        explicit iterator(node *n) : ptr_(n) {
+        }
+
+        iterator(const iterator &it) : ptr_(it.ptr_) {
+        }
+
+        iterator &operator++() {
+            ptr_ = ptr_->next();
+            return *this;
+        }
+
+        Type &operator*() {
+            return *ptr_->entry();
+        }
+
+        Type *operator->() {
+            return ptr_->entry();
+        }
+
+        bool operator!=(const iterator &it) {
+            return it.ptr_ != ptr_;
+        }
+
+        node *ptr() {
+            return ptr_;
+        }
+
+        const node *ptr() const {
+            return ptr_;
+        }
+
+    };
+
+private:
+
+    node head_;
+    size_t offset_;
+
+    void add_node(node *new_node, node *prev, node *next) {
+        new_node->set_offset(offset_);
+        next->prev() = new_node;
+        prev->next() = new_node;
+        new_node->next() = next;
+        new_node->prev() = prev;
+    }
+
+    void remove_node(node *n) {
+        n->next()->prev() = n->prev();
+        n->prev()->next() = n->next();
+        n->prev() = n->next() = n;
     }
 
     template <typename T, typename U>
-    constexpr std::size_t offset_of(U T::*member) const {
+    size_t offset_of(U T::*member) const {
         return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
     }
 
-    Type *this_offset(int offset) {
-        return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) + offset);
-    }
-
-    list *list_member(Type *obj) {
-        return reinterpret_cast<list *>(reinterpret_cast<char *>(obj) + offset_);
+    node *list_member(Type *obj) {
+        return reinterpret_cast<node *>(reinterpret_cast<char *>(obj) + offset_);
     }
 
 public:
 
-    class iterator {
-
-        list *ptr = nullptr;
-
-    public:
-
-        explicit iterator(list *p) : ptr(p) {
-        }
-
-        iterator &operator++() {
-            ptr = ptr->next_;
-            return *this;
-        }
-
-        Type &operator *() {
-            return *ptr->entry();
-        }
-
-        bool operator!=(const iterator &i) const {
-            return i.ptr != ptr;
-        }
-
-    };
+    using const_iterator = iterator;
 
     template <typename U>
     explicit list(U Type::*member) {
         offset_ = offset_of(member);
     }
 
-    void push_back(Type &new_element) {
-        add_element(list_member(&new_element), prev_, this);
+    list &push_back(Type &new_node) {
+        add_node(list_member(&new_node), head_.prev(), &head_);
+        return *this;
     }
 
-    void remove() {
-        prev_ = next_ = this;
+    list &erase(const iterator &it) {
+        remove_node(const_cast<node *>(it.ptr()));
+        return *this;
     }
 
     bool empty() const {
-        return prev_ == this;
-    }
-
-    Type *entry() {
-        return this_offset(-offset_);
+        return head_.prev() == &head_;
     }
 
     iterator begin() {
-        return iterator(next_);
+        return iterator(head_.next());
     }
 
     iterator end() {
-        return iterator(this);
-    }
-
-    list *next() const {
-        return next_;
+        return iterator(&head_);
     }
 
 };
@@ -219,7 +281,7 @@ struct test_session final {
         enum class msg { start_end, run, pass, fail };
 
         static const char *get(msg m) {
-            const char *run_messages_[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
+            static const char *run_messages_[4] = {"[========]",  "[  RUN   ]", "[  PASS  ]", "[  FAIL  ]"};
             return run_messages_[static_cast<int>(m)];
         }
 
@@ -227,7 +289,7 @@ struct test_session final {
 
     class test_case {
 
-        list<test_case> node_;
+        list<test_case>::node node_;
 
     public:
         const char *suite_name;
@@ -235,27 +297,53 @@ struct test_session final {
         std::size_t assertions = 0;
         std::size_t failed = 0;
 
-        test_case() : node_(&test_case::node_) {
-        }
-
-        explicit test_case(const char *suite, const char *test)
-                : node_(&test_case::node_), suite_name(suite), test_name(test) {
-            test_session::get().register_test(this);
-        }
-
-        bool assert_true(bool cond) {
+        void require_true(bool condition, const char *condition_str, const char *file, int line) {
             ++assertions;
-            if (!cond) ++failed;
-            return cond;
+            if (!condition) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is false\n";
+            }
+        }
+
+        void require_false(bool condition, const char *condition_str, const char *file, int line) {
+            ++assertions;
+            if (condition) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is true\n";
+            }
         }
 
         template <typename T1, typename T2>
-        bool assert_eq(T1 lhs, T2 rhs) {
-            (void)lhs; (void)rhs; // for gcc
+        void require_eq(const T1 &lhs, const T2 &rhs, const char *lhs_str, const char *rhs_str,
+                const char *file, int line) {
             ++assertions;
             bool cond = (lhs == rhs);
-            if (!cond) ++failed;
-            return cond;
+            if (!cond) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs_str
+                         << "\' isn't \'" << rhs_str << "\': " << lhs << " != " << rhs << "\n";
+            }
+        }
+
+        void require_eq(const char *lhs, const char *rhs, const char *, const char *, const char *file, int line) {
+            ++assertions;
+            bool cond = compare_strings(lhs, rhs) == 0;
+            if (!cond) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs
+                         << "\' isn't \'" << rhs << "\n";
+            }
+        }
+
+        void require_call(const char *mock_name, std::size_t expected_nr_of_calls,
+                std::size_t actual_nr_of_calls, const char *file, int line) {
+            ++assertions;
+            if (expected_nr_of_calls != actual_nr_of_calls) {
+                ++failed;
+                printer_ << "assertion failed: " << file << ':' << line << " " << mock_name
+                         << ": expected to be called: " << expected_nr_of_calls << "; actual: "
+                         << actual_nr_of_calls << "\n";
+            }
         }
 
         virtual void test_body() = 0;
@@ -350,7 +438,7 @@ public:
     }
 
     void register_test(test_case *t) {
-        tests_number_++;
+        ++tests_number_;
         test_cases_.push_back(*t);
     }
 
@@ -366,7 +454,7 @@ public:
             current_test_case_ = &test;
             test.test_body();
             if (test.failed)
-                failed++;
+                ++failed;
             test_result(test);
         }
         test_session_end_message(failed);
@@ -383,38 +471,150 @@ public:
 
 };
 
+template <typename T>
+class return_value final {
+    unsigned char data_[sizeof(T)];
+    T *value_ = reinterpret_cast<T *>(data_);
+public:
+    return_value() : data_() {
+    }
+    void set(const T &v) {
+        value_ = new(data_) T(v);
+    }
+    T &get() const {
+        return *value_;
+    }
+};
+
 template <>
-inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs) {
-    ++assertions;
-    auto cond = compare_strings(lhs, rhs) == 0;
-    if (!cond) failed++;
-    return cond;
-}
+class return_value<void> final {
+};
+
+template <typename T>
+class mock;
+
+template <typename R, typename ...Args>
+class mock_handler final {
+
+    void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
+    bool (*matcher_)(Args ...) = nullptr;
+    std::size_t expected_nr_of_calls_ = 1;
+    std::size_t actual_nr_of_calls_ = 0;
+    return_value<R> return_value_;
+
+    typename list<mock_handler>::node node_;
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, T &
+    >::type get_return_value() const {
+        return return_value_.get();
+    }
+
+    bool operator()(const Args &...args) {
+        if (matcher_) {
+            bool is_matched = matcher_(args...);
+            if (is_matched) {
+                ++actual_nr_of_calls_;
+            }
+            return is_matched;
+        }
+        ++actual_nr_of_calls_;
+        return true;
+    }
+
+public:
+
+    ~mock_handler() {
+        if (scheduled_assert_) {
+            scheduled_assert_(expected_nr_of_calls_, actual_nr_of_calls_);
+        }
+    }
+
+    mock_handler &match_args(bool (*matcher)(Args ...)) {
+        matcher_ = matcher;
+        return *this;
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, mock_handler &
+    >::type will_return(const T &val) {
+        return_value_.set(val);
+        return *this;
+    }
+
+    void schedule_assertion(void (*l)(std::size_t, std::size_t)) {
+        scheduled_assert_ = l;
+    }
+
+    mock_handler &times(std::size_t nr = 1) {
+        expected_nr_of_calls_ = nr;
+        return *this;
+    }
+
+    friend mock<R(Args...)>;
+
+};
+
+template <typename T>
+class mock final {};
+
+template <typename R, typename ...Args>
+class mock<R(Args...)> final {
+
+    mock_handler<R, Args...> default_handler_;
+    list<mock_handler<R, Args...>> handlers_;
+
+public:
+
+    mock() : handlers_(&mock_handler<R, Args...>::node_) {
+    }
+
+    void register_handler(mock_handler<R, Args...> &handler) {
+        handlers_.push_back(handler);
+    }
+
+    mock_handler<R, Args...> get_handler() const {
+        return {};
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        std::is_void<T>::value, T
+    >::type operator()(Args ...args) {
+        for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
+            (*it)(args...);
+        }
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, T
+    >::type operator()(Args ...args) {
+        for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
+            if ((*it)(args...)) {
+                return it->get_return_value();
+            }
+        }
+        return default_handler_.get_return_value();
+    }
+
+};
 
 } // namespace detail
 
 #define REQUIRE(cond) \
-    do { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_true(cond)) \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #cond << "\' is false\n"; \
-    } while (0)
+    yatf::detail::test_session::get().current_test_case().require_true(cond, #cond, __FILE__, __LINE__)
 
 #define REQUIRE_FALSE(cond) \
-    do { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_true(!(cond))) \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #cond << "\' is true\n"; \
-    } while (0)
+    yatf::detail::test_session::get().current_test_case().require_false(cond, #cond, __FILE__, __LINE__)
 
 #define REQUIRE_EQ(lhs, rhs) \
-    do { \
-        if (!yatf::detail::test_session::get().current_test_case().assert_eq(lhs, rhs)) { \
-            yatf::detail::printer_ << "assertion failed: " << __FILE__ << ':' << __LINE__ << " \'" << #lhs << "\' isn't \'" << #rhs << "\': "; \
-            yatf::detail::printer_ << lhs << " != " << rhs << "\n"; \
-        } \
-    } while (0)
+    yatf::detail::test_session::get().current_test_case().require_eq(lhs, rhs, #lhs, #rhs, __FILE__, __LINE__)
 
 #define YATF_CONCAT_(x,y) x##y
-#define YATF_CONCAT(x,y) YATF_CONCAT_(x,y)
+#define YATF_CONCAT(x,y) YATF_CONCAT_(x, y)
 
 #define YATF_UNIQUE_NAME(name) \
     YATF_CONCAT(name, __LINE__)
@@ -435,6 +635,17 @@ inline bool test_session::test_case::assert_eq(const char *lhs, const char *rhs)
 
 #define GET_4TH(_1, _2, _3, NAME, ...) NAME
 #define TEST(...) GET_4TH(__VA_ARGS__, YATF_TEST_FIXTURE, YATF_TEST)(__VA_ARGS__)
+
+#define MOCK(signature, name) \
+    yatf::detail::mock<signature> name
+
+#define REQUIRE_CALL(name) \
+    auto YATF_UNIQUE_NAME(__mock_handler) = name.get_handler(); \
+    name.register_handler(YATF_UNIQUE_NAME(__mock_handler)); \
+    YATF_UNIQUE_NAME(__mock_handler).schedule_assertion([](std::size_t expected, std::size_t actual) { \
+        yatf::detail::test_session::get().current_test_case().require_call(#name, expected, actual, __FILE__, __LINE__); \
+    }); \
+    (void)YATF_UNIQUE_NAME(__mock_handler)
 
 #ifdef YATF_MAIN
 

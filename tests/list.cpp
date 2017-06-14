@@ -10,8 +10,8 @@ namespace {
 
 struct helper {
     int a = 0;
-    list<helper> node_;
-    helper(int x) : a(x), node_(&helper::node_) {}
+    list<helper>::node node_;
+    helper(int x) : a(x) {}
 };
 
 void init_vectors(std::vector<int> &int_vec, std::vector<helper> &helper_vec, int size) {
@@ -41,7 +41,7 @@ void test_adding(list<helper> &head, int s) {
     }
 }
 
-} // namespace anon
+} // namespace
 
 BOOST_AUTO_TEST_SUITE(tests_list_suite)
 
@@ -65,6 +65,21 @@ BOOST_AUTO_TEST_CASE(can_use_iterator) {
     for (auto it = std::make_pair(helper_vec.begin(), head.begin()); it.first != helper_vec.end(); ++it.first, ++it.second) {
         BOOST_CHECK_EQUAL(it.first->a, (*it.second).a);
     }
+}
+
+BOOST_AUTO_TEST_CASE(elements_cleans_up_after_the_end_of_scope) {
+    list<helper> head(&helper::node_);
+    {
+        helper e1(21), e2(32), e3(-92), e4(1398), e5(0), e6(12438), e7(-2);
+        head.push_back(e1);
+        head.push_back(e2);
+        head.push_back(e3);
+        head.push_back(e4);
+        head.push_back(e5);
+        head.push_back(e6);
+        head.push_back(e7);
+    }
+    BOOST_CHECK(head.empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

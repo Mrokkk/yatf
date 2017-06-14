@@ -10,18 +10,31 @@ BOOST_AUTO_TEST_SUITE(test_case_suite)
 
 BOOST_FIXTURE_TEST_CASE(assert_works, yatf_fixture) {
     dummy_test_case tc{"suite", "name"};
-    BOOST_CHECK(tc.assert_eq(1, 1));
+    test_session::get().current_test_case(&tc);
+    REQUIRE_EQ(1, 1);
     BOOST_CHECK_EQUAL(tc.failed, 0);
     BOOST_CHECK_EQUAL(tc.assertions, 1);
-    BOOST_CHECK(tc.assert_true(true));
-    BOOST_CHECK_EQUAL(tc.failed, 0);
+    REQUIRE_EQ(1, 0);
+    BOOST_CHECK_EQUAL(tc.failed, 1);
     BOOST_CHECK_EQUAL(tc.assertions, 2);
-    BOOST_CHECK(!tc.assert_eq(1, 0));
+    REQUIRE(true);
     BOOST_CHECK_EQUAL(tc.failed, 1);
     BOOST_CHECK_EQUAL(tc.assertions, 3);
-    BOOST_CHECK(!tc.assert_true(false));
+    REQUIRE(false);
     BOOST_CHECK_EQUAL(tc.failed, 2);
     BOOST_CHECK_EQUAL(tc.assertions, 4);
+    REQUIRE_FALSE(true);
+    BOOST_CHECK_EQUAL(tc.failed, 3);
+    BOOST_CHECK_EQUAL(tc.assertions, 5);
+    REQUIRE_FALSE(false);
+    BOOST_CHECK_EQUAL(tc.failed, 3);
+    BOOST_CHECK_EQUAL(tc.assertions, 6);
+    REQUIRE_EQ("hello", "world");
+    BOOST_CHECK_EQUAL(tc.failed, 4);
+    BOOST_CHECK_EQUAL(tc.assertions, 7);
+    REQUIRE_EQ("hello", "hello");
+    BOOST_CHECK_EQUAL(tc.failed, 4);
+    BOOST_CHECK_EQUAL(tc.assertions, 8);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_can_pass, yatf_fixture) {
@@ -92,7 +105,7 @@ TEST(suite, name) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_can_call, yatf_fixture) {
-    auto &tc = suite_name88;
+    auto &tc = suite_name101;
     test_session::get().current_test_case(&tc);
     tc.test_body();
     auto result = tc.failed;
