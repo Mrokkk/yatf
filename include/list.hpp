@@ -148,13 +148,6 @@ public:
         return iterator(&head_);
     }
 
-    list &clear() {
-        while (not empty()) {
-            erase(begin());
-        }
-        return *this;
-    }
-
 };
 
 } // namespace detail

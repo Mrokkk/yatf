@@ -67,17 +67,18 @@ BOOST_AUTO_TEST_CASE(can_use_iterator) {
     }
 }
 
-BOOST_AUTO_TEST_CASE(can_remove_elements) {
+BOOST_AUTO_TEST_CASE(elements_cleans_up_after_the_end_of_scope) {
     list<helper> head(&helper::node_);
-    helper e1(21), e2(32), e3(-92), e4(1398), e5(0), e6(12438), e7(-2);
-    head.push_back(e1);
-    head.push_back(e2);
-    head.push_back(e3);
-    head.push_back(e4);
-    head.push_back(e5);
-    head.push_back(e6);
-    head.push_back(e7);
-    head.clear();
+    {
+        helper e1(21), e2(32), e3(-92), e4(1398), e5(0), e6(12438), e7(-2);
+        head.push_back(e1);
+        head.push_back(e2);
+        head.push_back(e3);
+        head.push_back(e4);
+        head.push_back(e5);
+        head.push_back(e6);
+        head.push_back(e7);
+    }
     BOOST_CHECK(head.empty());
 }
 
