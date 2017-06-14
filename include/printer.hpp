@@ -72,6 +72,8 @@ struct printer final {
             case color::reset:
                 printf_("\e[0m");
                 break;
+            default:
+                break;
         }
         return *this;
     }
@@ -80,6 +82,8 @@ struct printer final {
         switch (c) {
             case cursor_movement::up:
                 printf_("\033[1A");
+                break;
+            default:
                 break;
         }
         return *this;
