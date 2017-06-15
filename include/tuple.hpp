@@ -94,6 +94,11 @@ struct tuple_impl<expand<N...>, T...> : public tuple_element<N, T>... {
         return compare<M>(first) && compare<M + 1>(args...);
     }
 
+    template <typename U, std::size_t M = 0>
+    bool compare(const U &first) {
+        return compare<M>(first);
+    }
+
 };
 
 } // namespace detail

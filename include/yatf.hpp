@@ -471,17 +471,24 @@ public:
 
 template <typename T>
 class return_value final {
+
     unsigned char data_[sizeof(T)];
     T *value_ = reinterpret_cast<T *>(data_);
+
 public:
+
     return_value() : data_() {
     }
-    void set(const T &v) {
-        value_ = new(data_) T(v);
+
+    template <typename ...Args>
+    void set(const Args &...v) {
+        value_ = new(data_) T(v...);
     }
+
     T &get() const {
         return *value_;
     }
+
 };
 
 template <>
