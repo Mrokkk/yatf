@@ -576,7 +576,7 @@ class mock final {};
 template <typename R, typename ...Args>
 class mock<R(Args...)> final {
 
-    mock_handler<R, Args...> default_handler_;
+    return_value<R> default_return_value_;
     list<mock_handler<R, Args...>> handlers_;
 
 public:
@@ -610,7 +610,7 @@ public:
                 return it->get_return_value();
             }
         }
-        return default_handler_.get_return_value();
+        return default_return_value_.get();
     }
 
 };
