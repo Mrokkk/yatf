@@ -553,7 +553,7 @@ public:
 
     template <typename ...T>
     mock_handler &for_arguments(T ...args) {
-        arguments_ = new(data_) tuple<T...>(args...);
+        arguments_ = new(data_) tuple<Args...>(args...);
         return *this;
     }
 

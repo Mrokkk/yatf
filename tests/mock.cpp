@@ -185,10 +185,12 @@ BOOST_FIXTURE_TEST_CASE(dfsdf, yatf_fixture) {
     mock<int(int, int)> dummy_mock;
     auto handler = dummy_mock.get_handler();
     dummy_mock.register_handler(handler);
-    handler.for_arguments(2, 4).will_return(33);
+    handler.for_arguments(::yatf::_, 4).will_return(33);
     auto res = dummy_mock(2, 5);
     BOOST_CHECK_EQUAL(res, 0);
     res = dummy_mock(2, 4);
+    BOOST_CHECK_EQUAL(res, 33);
+    res = dummy_mock(3, 4);
     BOOST_CHECK_EQUAL(res, 33);
 }
 

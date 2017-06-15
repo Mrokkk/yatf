@@ -2,9 +2,12 @@
 
 #include <type_traits>
 
-namespace detail {
+namespace yatf {
 
 struct any_value {};
+extern any_value _;
+
+namespace detail {
 
 template <std::size_t ...N>
 struct expand {
@@ -26,7 +29,7 @@ struct choose_nth<0, T, U...> {
 
 template <std::size_t N, typename T>
 class tuple_element {
-    const T value_;
+    T value_;
     bool match_all_ = false;
 public:
     explicit tuple_element(const T &val) : value_(val) {
@@ -65,7 +68,8 @@ struct tuple_impl<expand<N...>, T...> : public tuple_element<N, T>... {
 
     template <std::size_t M> using value_type = typename choose_nth<M, T...>::type;
 
-    explicit tuple_impl(const T &...values) : tuple_element<N, T>(values)... {
+    template <typename ...Args>
+    explicit tuple_impl(const Args &...values) : tuple_element<N, T>(values)... {
     }
 
     template <std::size_t M>
@@ -74,8 +78,8 @@ struct tuple_impl<expand<N...>, T...> : public tuple_element<N, T>... {
     }
 
     template <std::size_t M>
-    bool compare(value_type<M> val) {
-        return get<M>() == val;
+    bool compare(const value_type<M> &val) {
+        return tuple_element<M, value_type<M>>::operator==(val);
     }
 
     template <typename U, typename ...Args, std::size_t M = 0>
@@ -90,7 +94,8 @@ struct tuple_impl<expand<N...>, T...> : public tuple_element<N, T>... {
 template <typename ...T>
 struct tuple : public detail::tuple_impl<typename detail::range<sizeof...(T)>::type, T...> {
 
-    explicit tuple(const T &...values)
+    template <typename ...Args>
+    explicit tuple(const Args &...values)
         : detail::tuple_impl<typename detail::range<sizeof...(T)>::type, T...>(values...) {
     }
 
@@ -106,4 +111,6 @@ struct tuple<> {
         return true;
     }
 };
+
+} // namespace yatf
 
