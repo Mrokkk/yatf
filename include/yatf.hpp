@@ -2,7 +2,6 @@
 
 #include <type_traits>
 #include "tuple.hpp"
-#include "helpers.hpp"
 
 struct yatf_fixture;
 
@@ -502,7 +501,7 @@ class mock_handler final {
     return_value<R> return_value_;
     typename list<mock_handler>::node node_;
 
-    unsigned char data_[size_of_pack<Args...>::value];
+    unsigned char data_[sizeof(tuple<Args...>)];
     tuple<Args...> *arguments_ = nullptr;
 
     template <typename T = R>

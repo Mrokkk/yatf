@@ -4,6 +4,8 @@
 
 namespace detail {
 
+struct any_value {};
+
 template <std::size_t ...N>
 struct expand {
     using type = expand<N...>;
@@ -25,11 +27,20 @@ struct choose_nth<0, T, U...> {
 template <std::size_t N, typename T>
 class tuple_element {
     const T value_;
+    bool match_all_ = false;
 public:
     explicit tuple_element(const T &val) : value_(val) {
     }
+    explicit tuple_element(any_value) : match_all_(true) {
+    }
     const T &get() const {
         return value_;
+    }
+    bool operator==(const T &v) {
+        if (match_all_) {
+            return true;
+        }
+        return value_ == v;
     }
 };
 
