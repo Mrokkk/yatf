@@ -29,22 +29,29 @@ struct choose_nth<0, T, U...> {
 
 template <std::size_t N, typename T>
 class tuple_element {
+
     T value_;
     bool match_all_ = false;
+
 public:
+
     explicit tuple_element(const T &val) : value_(val) {
     }
+
     explicit tuple_element(any_value) : match_all_(true) {
     }
+
     const T &get() const {
         return value_;
     }
+
     bool operator==(const T &v) {
         if (match_all_) {
             return true;
         }
         return value_ == v;
     }
+
 };
 
 template <std::size_t L, std::size_t I = 0, typename S = expand<>>
@@ -83,7 +90,7 @@ struct tuple_impl<expand<N...>, T...> : public tuple_element<N, T>... {
     }
 
     template <typename U, typename ...Args, std::size_t M = 0>
-    bool compare(U first, Args ...args) {
+    bool compare(const U &first, const Args &...args) {
         return compare<M>(first) && compare<M + 1>(args...);
     }
 
@@ -107,7 +114,7 @@ struct tuple : public detail::tuple_impl<typename detail::range<sizeof...(T)>::t
 
 template <>
 struct tuple<> {
-    bool compare() {
+    bool compare() const {
         return true;
     }
 };

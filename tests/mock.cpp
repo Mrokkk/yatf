@@ -3,7 +3,9 @@
 #include <cstdarg>
 #include <string>
 #include "common.hpp"
+#include <memory>
 
+using yatf::_;
 using namespace yatf::detail;
 
 BOOST_AUTO_TEST_SUITE(mocks_suite)
@@ -181,17 +183,32 @@ BOOST_FIXTURE_TEST_CASE(mock_can_match_arguments, yatf_fixture) {
     }
 }
 
-BOOST_FIXTURE_TEST_CASE(dfsdf, yatf_fixture) {
-    mock<int(int, int)> dummy_mock;
+struct helper {
+
+    int a, b;
+
+    helper(int a, int b) : a(a), b(b) {
+    }
+
+};
+
+bool operator==(const helper &lhs, const helper &rhs) {
+    return lhs.a == rhs.a && lhs.b == rhs.b;
+}
+
+BOOST_FIXTURE_TEST_CASE(improved_arguments_matching_works, yatf_fixture) {
+    mock<int(int, helper)> dummy_mock;
     auto handler = dummy_mock.get_handler();
     dummy_mock.register_handler(handler);
-    handler.for_arguments(::yatf::_, 4).will_return(33);
-    auto res = dummy_mock(2, 5);
+    handler.for_arguments(_, helper(2, 1)).will_return(33);
+    auto res = dummy_mock(2, helper(2, 1));
+    BOOST_CHECK_EQUAL(res, 33);
+    res = dummy_mock(2, helper(2, 2));
     BOOST_CHECK_EQUAL(res, 0);
-    res = dummy_mock(2, 4);
-    BOOST_CHECK_EQUAL(res, 33);
-    res = dummy_mock(3, 4);
-    BOOST_CHECK_EQUAL(res, 33);
+    handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+            BOOST_CHECK_EQUAL(expected, 1);
+            BOOST_CHECK_EQUAL(actual, 1);
+    });
 }
 
 BOOST_AUTO_TEST_SUITE_END()
