@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(can_use_iterator) {
 BOOST_AUTO_TEST_CASE(elements_cleans_up_after_the_end_of_scope) {
     list<helper> head(&helper::node_);
     {
-        helper e1(21), e2(32), e3(-92), e4(1398), e5(0), e6(12438), e7(-2);
+        helper e1(21), e2(32), e3(-92), e4(1398), e5(0), e6(12438), e7(-2), e8(-3);
         head.push_back(e1);
         head.push_back(e2);
         head.push_back(e3);
