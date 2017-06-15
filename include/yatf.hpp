@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <type_traits>
 
 struct yatf_fixture;
@@ -136,7 +135,7 @@ struct list final {
     class node {
 
         node *next_ = this, *prev_ = this;
-        size_t offset_ = 0;
+        std::size_t offset_ = 0;
 
         Type *this_offset() {
             return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) - offset_);
@@ -165,7 +164,7 @@ struct list final {
             return this_offset();
         }
 
-        void set_offset(size_t offset) {
+        void set_offset(std::size_t offset) {
             offset_ = offset;
         }
 
@@ -213,7 +212,7 @@ struct list final {
 private:
 
     node head_;
-    size_t offset_;
+    std::size_t offset_;
 
     void add_node(node *new_node, node *prev, node *next) {
         new_node->set_offset(offset_);
@@ -229,7 +228,7 @@ private:
     }
 
     template <typename T, typename U>
-    size_t offset_of(U T::*member) const {
+    std::size_t offset_of(U T::*member) const {
         return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
     }
 
