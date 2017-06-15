@@ -1,6 +1,8 @@
 #pragma once
 
 #include <type_traits>
+#include "tuple.hpp"
+#include "helpers.hpp"
 
 struct yatf_fixture;
 
@@ -500,6 +502,9 @@ class mock_handler final {
     return_value<R> return_value_;
     typename list<mock_handler>::node node_;
 
+    unsigned char data_[size_of_pack<Args...>::value];
+    tuple<Args...> *arguments_ = nullptr;
+
     template <typename T = R>
     typename std::enable_if<
         !std::is_void<T>::value, T &
@@ -508,6 +513,13 @@ class mock_handler final {
     }
 
     bool operator()(const Args &...args) {
+        if (arguments_ != nullptr) {
+            bool is_matched = arguments_->compare(args...);
+            if (is_matched) {
+                ++actual_nr_of_calls_;
+            }
+            return is_matched;
+        }
         if (matcher_) {
             bool is_matched = matcher_(args...);
             if (is_matched) {
@@ -537,6 +549,12 @@ public:
         !std::is_void<T>::value, mock_handler &
     >::type will_return(const T &val) {
         return_value_.set(val);
+        return *this;
+    }
+
+    template <typename ...T>
+    mock_handler &for_arguments(T ...args) {
+        arguments_ = new(data_) tuple<T...>(args...);
         return *this;
     }
 
@@ -652,6 +670,8 @@ printer printer_;
 printf_t printf_;
 
 } // namespace detail
+
+any_value _;
 
 inline config read_config(unsigned argc, const char **argv) {
     config c;
