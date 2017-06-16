@@ -30,6 +30,29 @@ BOOST_FIXTURE_TEST_CASE(mock_can_expect_number_of_calls, yatf_fixture) {
                 BOOST_CHECK_EQUAL(actual, 0);
         });
     }
+    {
+        auto handler = dummy_mock.get_handler();
+        dummy_mock.register_handler(handler);
+        handler.times(10234);
+        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+                BOOST_CHECK_EQUAL(expected, 10234);
+                BOOST_CHECK_EQUAL(actual, 2);
+        });
+        dummy_mock();
+        dummy_mock();
+    }
+    {
+        auto handler = dummy_mock.get_handler();
+        dummy_mock.register_handler(handler);
+        handler.times(22);
+        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+                BOOST_CHECK_EQUAL(expected, 22);
+                BOOST_CHECK_EQUAL(actual, 22);
+        });
+        for (auto i = 0; i < 22; ++i) {
+            dummy_mock();
+        }
+    }
 }
 
 BOOST_FIXTURE_TEST_CASE(mock_without_handler_will_return_def_vals, yatf_fixture) {
@@ -183,6 +206,34 @@ BOOST_FIXTURE_TEST_CASE(mock_can_match_arguments, yatf_fixture) {
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(can_match_single_argument, yatf_fixture) {
+    mock<void(int)> dummy_mock;
+    {
+        auto handler = dummy_mock.get_handler();
+        dummy_mock.register_handler(handler);
+        handler.for_arguments(_);
+        dummy_mock(2);
+        dummy_mock(0);
+        dummy_mock(-932);
+        dummy_mock(8);
+        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+                BOOST_CHECK_EQUAL(expected, 1);
+                BOOST_CHECK_EQUAL(actual, 4);
+        });
+    }
+    {
+        auto handler = dummy_mock.get_handler();
+        dummy_mock.register_handler(handler);
+        handler.for_arguments(924);
+        dummy_mock(924);
+        dummy_mock(2);
+        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+                BOOST_CHECK_EQUAL(expected, 1);
+                BOOST_CHECK_EQUAL(actual, 1);
+        });
+    }
+}
+
 struct helper {
 
     int a, b;
@@ -196,7 +247,7 @@ bool operator==(const helper &lhs, const helper &rhs) {
     return lhs.a == rhs.a && lhs.b == rhs.b;
 }
 
-BOOST_FIXTURE_TEST_CASE(improved_arguments_matching_works, yatf_fixture) {
+BOOST_FIXTURE_TEST_CASE(can_match_multiple_arguments, yatf_fixture) {
     mock<int(int, helper)> dummy_mock;
     auto handler = dummy_mock.get_handler();
     dummy_mock.register_handler(handler);
