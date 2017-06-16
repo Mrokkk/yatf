@@ -508,8 +508,8 @@ class mock_handler final {
     return_value<R> return_value_;
     typename list<mock_handler>::node node_;
 
-    unsigned char data_[sizeof(tuple<Args...>)];
-    tuple<Args...> *arguments_ = nullptr;
+    unsigned char data_[sizeof(arguments<Args...>)];
+    arguments<Args...> *arguments_ = nullptr;
 
     template <typename T = R>
     typename std::enable_if<
@@ -560,7 +560,7 @@ public:
 
     template <typename ...T>
     mock_handler &for_arguments(T ...args) {
-        arguments_ = new(data_) tuple<Args...>(args...);
+        arguments_ = new(data_) arguments<Args...>(args...);
         return *this;
     }
 

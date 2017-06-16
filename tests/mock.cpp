@@ -211,5 +211,30 @@ BOOST_FIXTURE_TEST_CASE(improved_arguments_matching_works, yatf_fixture) {
     });
 }
 
+struct my_matcher {
+
+    static bool match(const int &rhs) {
+        return rhs == 2;
+    }
+
+};
+
+BOOST_FIXTURE_TEST_CASE(can_pass_matcher, yatf_fixture) {
+    mock<int(int, helper)> dummy_mock;
+    auto handler = dummy_mock.get_handler();
+    dummy_mock.register_handler(handler);
+    handler.for_arguments(my_matcher(), helper(2, 1)).will_return(33);
+    auto res = dummy_mock(2, helper(2, 1));
+    BOOST_CHECK_EQUAL(res, 33);
+    res = dummy_mock(1, helper(2, 1));
+    BOOST_CHECK_EQUAL(res, 0);
+    res = dummy_mock(2, helper(2, 2));
+    BOOST_CHECK_EQUAL(res, 0);
+    handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
+            BOOST_CHECK_EQUAL(expected, 1);
+            BOOST_CHECK_EQUAL(actual, 1);
+    });
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 

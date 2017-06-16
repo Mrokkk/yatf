@@ -5,6 +5,7 @@
 namespace yatf {
 
 struct any_value {};
+
 extern any_value _;
 
 namespace detail {
@@ -28,26 +29,32 @@ struct choose_nth<0, T, U...> {
 };
 
 template <std::size_t N, typename T>
-class tuple_element {
+class argument {
 
     T value_;
-    bool match_all_ = false;
+    bool (*matcher_)(const T &) = nullptr;
 
 public:
 
-    explicit tuple_element(const T &val) : value_(val) {
+    explicit argument(const T &val) : value_(val) {
     }
 
-    explicit tuple_element(any_value) : match_all_(true) {
+    explicit argument(any_value) : matcher_([](const T &) {
+            return true;
+        }) {
+    }
+
+    template <typename Matcher>
+    explicit argument(const Matcher &) : matcher_(&Matcher::match) {
     }
 
     const T &get() const {
         return value_;
     }
 
-    bool operator==(const T &v) {
-        if (match_all_) {
-            return true;
+    bool match(const T &v) {
+        if (matcher_) {
+            return matcher_(v);
         }
         return value_ == v;
     }
@@ -67,26 +74,26 @@ struct range<L, L, expand<N...>> : expand<N...> {
 };
 
 template <typename N, typename ...T>
-class tuple_impl {
+class arguments_impl {
 };
 
 template <std::size_t ...N, typename ...T>
-struct tuple_impl<expand<N...>, T...> : public tuple_element<N, T>... {
+struct arguments_impl<expand<N...>, T...> : public argument<N, T>... {
 
     template <std::size_t M> using value_type = typename choose_nth<M, T...>::type;
 
     template <typename ...Args>
-    explicit tuple_impl(const Args &...values) : tuple_element<N, T>(values)... {
+    explicit arguments_impl(const Args &...values) : argument<N, T>(values)... {
     }
 
     template <std::size_t M>
     const value_type<M> &get() const {
-        return tuple_element<M, value_type<M>>::get();
+        return argument<M, value_type<M>>::get();
     }
 
     template <std::size_t M>
     bool compare(const value_type<M> &val) {
-        return tuple_element<M, value_type<M>>::operator==(val);
+        return argument<M, value_type<M>>::match(val);
     }
 
     template <typename U, typename ...Args, std::size_t M = 0>
@@ -104,11 +111,11 @@ struct tuple_impl<expand<N...>, T...> : public tuple_element<N, T>... {
 } // namespace detail
 
 template <typename ...T>
-struct tuple : public detail::tuple_impl<typename detail::range<sizeof...(T)>::type, T...> {
+struct arguments final : public detail::arguments_impl<typename detail::range<sizeof...(T)>::type, T...> {
 
     template <typename ...Args>
-    explicit tuple(const Args &...values)
-        : detail::tuple_impl<typename detail::range<sizeof...(T)>::type, T...>(values...) {
+    explicit arguments(const Args &...values)
+        : detail::arguments_impl<typename detail::range<sizeof...(T)>::type, T...>(values...) {
     }
 
     static constexpr std::size_t size() {
@@ -118,7 +125,7 @@ struct tuple : public detail::tuple_impl<typename detail::range<sizeof...(T)>::t
 };
 
 template <>
-struct tuple<> {
+struct arguments<> final {
     bool compare() const {
         return true;
     }
