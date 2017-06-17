@@ -48,10 +48,6 @@ public:
     explicit argument(const Matcher &) : matcher_(&Matcher::match) {
     }
 
-    const T &get() const {
-        return value_;
-    }
-
     bool match(const T &v) {
         if (matcher_) {
             return matcher_(v);
