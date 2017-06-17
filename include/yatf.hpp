@@ -223,12 +223,6 @@ private:
         new_node->prev() = prev;
     }
 
-    void remove_node(node *n) {
-        n->next()->prev() = n->prev();
-        n->prev()->next() = n->next();
-        n->prev() = n->next() = n;
-    }
-
     template <typename T, typename U>
     std::size_t offset_of(U T::*member) const {
         return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
@@ -249,11 +243,6 @@ public:
 
     list &push_back(Type &new_node) {
         add_node(list_member(&new_node), head_.prev(), &head_);
-        return *this;
-    }
-
-    list &erase(const iterator &it) {
-        remove_node(const_cast<node *>(it.ptr()));
         return *this;
     }
 
