@@ -1,290 +1,315 @@
-#include "../include/yatf.hpp"
+#include <ctime>
+#include <limits>
+#include <cstdlib>
 #include <boost/test/unit_test.hpp>
-#include <cstdarg>
-#include <string>
+
 #include "common.hpp"
-#include <memory>
+#include "../include/yatf.hpp"
 
 using yatf::_;
 using namespace yatf::detail;
 
+#define GET_HANDLER(mock, handler_name) \
+    auto handler_name = mock.get_handler(); \
+    dummy_mock.register_handler(handler_name);
+
 BOOST_AUTO_TEST_SUITE(mocks_suite)
 
-BOOST_FIXTURE_TEST_CASE(mock_can_expect_number_of_calls, yatf_fixture) {
-    mock<void()> dummy_mock;
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.times(23);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 23);
-                BOOST_CHECK_EQUAL(actual, 0);
+template <typename Signature>
+void test_handler_creating() {
+    mock<Signature> dummy_mock;
+    GET_HANDLER(dummy_mock, handler);
+}
+
+BOOST_FIXTURE_TEST_CASE(can_create_handler, yatf_fixture) {
+    test_handler_creating<void()>();
+    test_handler_creating<void(int)>();
+    test_handler_creating<void(int, int)>();
+    test_handler_creating<int()>();
+    test_handler_creating<int(int)>();
+    test_handler_creating<int(int, int)>();
+}
+
+template <typename Signature>
+void test_expecting_calls() {
+    mock<Signature> dummy_mock;
+    do {
+        GET_HANDLER(dummy_mock, handler);
+        handler.times(0);
+        handler.schedule_assertion([](std::size_t expected, std::size_t) {
+            BOOST_CHECK_EQUAL(expected, 0);
         });
-    }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.times(92483);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 92483);
-                BOOST_CHECK_EQUAL(actual, 0);
+    } while (0);
+    do {
+        GET_HANDLER(dummy_mock, handler);
+        handler.times(1);
+        handler.schedule_assertion([](std::size_t expected, std::size_t) {
+            BOOST_CHECK_EQUAL(expected, 1);
         });
+    } while (0);
+    do {
+        GET_HANDLER(dummy_mock, handler);
+        handler.times(924);
+        handler.schedule_assertion([](std::size_t expected, std::size_t) {
+            BOOST_CHECK_EQUAL(expected, 924);
+        });
+    } while (0);
+}
+
+BOOST_FIXTURE_TEST_CASE(can_expect_number_of_calls, yatf_fixture) {
+    test_expecting_calls<void()>();
+    test_expecting_calls<void(int)>();
+    test_expecting_calls<void(int, int)>();
+    test_expecting_calls<int()>();
+    test_expecting_calls<int(int)>();
+    test_expecting_calls<int(int, int)>();
+}
+
+template <typename R, typename ...Args>
+void test_calling() {
+    mock<R(Args...)> dummy_mock;
+    do {
+        GET_HANDLER(dummy_mock, handler);
+        handler.schedule_assertion([](std::size_t, std::size_t actual) {
+            BOOST_CHECK_EQUAL(actual, 0);
+        });
+    } while (0);
+    do {
+        GET_HANDLER(dummy_mock, handler);
+        handler.schedule_assertion([](std::size_t, std::size_t actual) {
+            BOOST_CHECK_EQUAL(actual, 1);
+        });
+        dummy_mock(Args()...);
+    } while (0);
+    do {
+        GET_HANDLER(dummy_mock, handler);
+        handler.schedule_assertion([](std::size_t, std::size_t actual) {
+            BOOST_CHECK_EQUAL(actual, 256);
+        });
+        for (int i = 0; i < 256; ++i) {
+            dummy_mock(Args()...);
+        }
+    } while (0);
+}
+
+BOOST_FIXTURE_TEST_CASE(can_count_actual_nr_of_calls, yatf_fixture) {
+    test_calling<void>();
+    test_calling<void, int>();
+    test_calling<void, int, int>();
+    test_calling<int>();
+    test_calling<int, int>();
+    test_calling<int, int, int>();
+}
+
+template <typename R, typename ...Args>
+void test_return_value() {
+    mock<R(Args...)> dummy_mock;
+    for (auto i = 0; i < 256; ++i ) {
+        GET_HANDLER(dummy_mock, handler);
+        auto return_value = std::rand() % std::numeric_limits<R>::max();
+        handler.will_return(return_value);
+        auto result = dummy_mock(Args()...);
+        BOOST_CHECK_EQUAL(result, return_value);
     }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.times(10234);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 10234);
+}
+
+BOOST_FIXTURE_TEST_CASE(can_specify_return_value, yatf_fixture) {
+    std::srand(std::time(0));
+    test_return_value<int>();
+    test_return_value<int, int>();
+    test_return_value<int, int, int>();
+}
+
+template <typename R, typename ...Args>
+void test_default_return_value() {
+    mock<R(Args...)> dummy_mock;
+    for (auto i = 0; i < 256; ++i ) {
+        auto result = dummy_mock(Args()...);
+        BOOST_CHECK_EQUAL(result, R());
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE(mock_will_return_default_value_when_no_handler, yatf_fixture) {
+    test_default_return_value<int>();
+    test_default_return_value<int, int>();
+    test_default_return_value<int, int, int>();
+}
+
+BOOST_FIXTURE_TEST_CASE(dummy_test_for_arguments, yatf_fixture) {
+    ::yatf::arguments<> a;
+    BOOST_CHECK(a.compare());
+}
+
+template <typename R>
+void test_matching_by_lambda() {
+    do {
+        mock<R()> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
                 BOOST_CHECK_EQUAL(actual, 2);
-        });
-        dummy_mock();
-        dummy_mock();
-    }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.times(22);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 22);
-                BOOST_CHECK_EQUAL(actual, 22);
-        });
-        for (auto i = 0; i < 22; ++i) {
+            });
+            handler.match_args([]() {
+                return true;
+            });
             dummy_mock();
-        }
-    }
-}
-
-BOOST_FIXTURE_TEST_CASE(mock_without_handler_will_return_def_vals, yatf_fixture) {
-    mock<int()> dummy_mock;
-    for (auto i = 0; i < 1024; ++i ) {
-        auto result = dummy_mock();
-        BOOST_CHECK_EQUAL(result, int());
-    }
-}
-
-BOOST_FIXTURE_TEST_CASE(mock_without_retval_can_be_called, yatf_fixture) {
-    mock<void()> dummy_mock;
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 0);
-        });
-    }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 1);
-        });
-        dummy_mock();
-    }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 1024);
-        });
-        for (auto i = 0; i < 1024; ++i) {
             dummy_mock();
-        }
-    }
-}
-
-BOOST_FIXTURE_TEST_CASE(mock_with_retval_can_be_called, yatf_fixture) {
-    mock<int()> dummy_mock;
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 1);
-        });
-        auto result = dummy_mock();
-        BOOST_CHECK_EQUAL(result, int());
-    }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.will_return(934);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 1);
-        });
-        auto result = dummy_mock();
-        BOOST_CHECK_EQUAL(result, 934);
-    }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.will_return(-3198);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 1024);
-        });
-        for (auto i = 0; i < 1024; ++i) {
-            auto result = dummy_mock();
-            BOOST_CHECK_EQUAL(result, -3198);
-        }
-    }
-}
-
-BOOST_FIXTURE_TEST_CASE(mock_can_match_arguments, yatf_fixture) {
-    mock<int(int, char)> dummy_mock;
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 1);
-        });
-        handler.match_args([](int a, char c) {
-            return a == 9932 && c == 'd';
-        }).will_return(9438);
-        auto result = dummy_mock(34, 'c');
-        BOOST_CHECK_EQUAL(result, int());
-        result = dummy_mock(9932, 'd');
-        BOOST_CHECK_EQUAL(result, 9438);
-    }
-    mock<int()> dummy_mock2;
-    {
-        auto handler = dummy_mock2.get_handler();
-        dummy_mock2.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 1);
-        });
-        handler.match_args([]() {
-            return true;
-        }).will_return(9438);
-        auto result = dummy_mock2();
-        BOOST_CHECK_EQUAL(result, 9438);
-    }
-    mock<int()> dummy_mock3;
-    {
-        auto handler = dummy_mock3.get_handler();
-        dummy_mock3.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
                 BOOST_CHECK_EQUAL(actual, 0);
-        });
-        handler.match_args([]() {
-            return false;
-        }).will_return(9438);
-        auto result = dummy_mock3();
-        BOOST_CHECK_EQUAL(result, int());
-    }
-    mock<void()> dummy_mock4;
-    {
-        auto handler = dummy_mock4.get_handler();
-        dummy_mock4.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
+            });
+            handler.match_args([]() {
+                return false;
+            });
+            dummy_mock();
+            dummy_mock();
+        } while (0);
+    } while (0);
+    do {
+        mock<R(int)> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
                 BOOST_CHECK_EQUAL(actual, 1);
-        });
-        handler.match_args([]() {
-            return true;
-        });
-        dummy_mock4();
-    }
-    mock<void()> dummy_mock5;
-    {
-        auto handler = dummy_mock5.get_handler();
-        dummy_mock5.register_handler(handler);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 0);
-        });
-        handler.match_args([]() {
-            return false;
-        });
-        dummy_mock5();
-    }
-}
-
-BOOST_FIXTURE_TEST_CASE(can_match_single_argument, yatf_fixture) {
-    mock<void(int)> dummy_mock;
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.for_arguments(_);
-        dummy_mock(2);
-        dummy_mock(0);
-        dummy_mock(-932);
-        dummy_mock(8);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
-                BOOST_CHECK_EQUAL(actual, 4);
-        });
-    }
-    {
-        auto handler = dummy_mock.get_handler();
-        dummy_mock.register_handler(handler);
-        handler.for_arguments(924);
-        dummy_mock(924);
-        dummy_mock(2);
-        handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-                BOOST_CHECK_EQUAL(expected, 1);
+            });
+            handler.match_args([](int a) {
+                return a == 32;
+            });
+            dummy_mock(2);
+            dummy_mock(32);
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 32);
+            });
+            handler.match_args([](int a) {
+                return a == 19432;
+            });
+            for (auto i = 0; i < 32; ++i) {
+                dummy_mock(19432);
+            }
+        } while (0);
+    } while (0);
+    do {
+        mock<R(int, int)> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
                 BOOST_CHECK_EQUAL(actual, 1);
-        });
-    }
+            });
+            handler.match_args([](int a, int b) {
+                return a == 32 && b == 3;
+            });
+            dummy_mock(2, 3);
+            dummy_mock(32, 3);
+            dummy_mock(32, 0);
+        } while (0);
+    } while (0);
 }
 
-struct helper {
-
-    int a, b;
-
-    helper(int a, int b) : a(a), b(b) {
-    }
-
-};
-
-bool operator==(const helper &lhs, const helper &rhs) {
-    return lhs.a == rhs.a && lhs.b == rhs.b;
+BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_lambda, yatf_fixture) {
+    test_matching_by_lambda<void>();
+    test_matching_by_lambda<int>();
 }
 
-BOOST_FIXTURE_TEST_CASE(can_match_multiple_arguments, yatf_fixture) {
-    mock<int(int, helper)> dummy_mock;
-    auto handler = dummy_mock.get_handler();
-    dummy_mock.register_handler(handler);
-    handler.for_arguments(_, helper(2, 1)).will_return(33);
-    auto res = dummy_mock(2, helper(2, 1));
-    BOOST_CHECK_EQUAL(res, 33);
-    res = dummy_mock(2, helper(2, 2));
-    BOOST_CHECK_EQUAL(res, 0);
-    handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-            BOOST_CHECK_EQUAL(expected, 1);
+template <typename R>
+void test_matching() {
+    do {
+        mock<R()> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 2);
+            });
+            handler.for_arguments();
+            dummy_mock();
+            dummy_mock();
+        } while (0);
+    } while (0);
+    do {
+        mock<R(int)> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 1);
+            });
+            handler.for_arguments(32);
+            dummy_mock(2);
+            dummy_mock(32);
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 32);
+            });
+            handler.for_arguments(19432);
+            for (auto i = 0; i < 32; ++i) {
+                dummy_mock(19432);
+            }
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 32);
+            });
+            handler.for_arguments(_);
+            for (auto i = 0; i < 32; ++i) {
+                dummy_mock(i);
+            }
+        } while (0);
+    } while (0);
+    do {
+        mock<R(int, int)> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 1);
+            });
+            handler.for_arguments(32, 3);
+            dummy_mock(2, 3);
+            dummy_mock(32, 3);
+            dummy_mock(32, 0);
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 32);
+            });
+            handler.for_arguments(_, _);
+            for (auto i = 0; i < 32; ++i) {
+                dummy_mock(i, i + 1024);
+            }
+        } while (0);
+    } while (0);
+}
+
+BOOST_FIXTURE_TEST_CASE(can_match_arguments_directly, yatf_fixture) {
+    test_matching<void>();
+    test_matching<int>();
+}
+
+BOOST_FIXTURE_TEST_CASE(can_match_arguments_and_set_return_values, yatf_fixture) {
+    mock<int(int)> dummy_mock;
+    do {
+        GET_HANDLER(dummy_mock, handler1);
+        GET_HANDLER(dummy_mock, handler2);
+        GET_HANDLER(dummy_mock, handler3);
+        auto assertion = [](std::size_t, std::size_t actual) {
             BOOST_CHECK_EQUAL(actual, 1);
-    });
-}
-
-struct my_matcher {
-
-    static bool match(const int &rhs) {
-        return rhs == 2;
-    }
-
-};
-
-BOOST_FIXTURE_TEST_CASE(can_pass_matcher, yatf_fixture) {
-    mock<int(int, helper)> dummy_mock;
-    auto handler = dummy_mock.get_handler();
-    dummy_mock.register_handler(handler);
-    handler.for_arguments(my_matcher(), helper(2, 1)).will_return(33);
-    auto res = dummy_mock(2, helper(2, 1));
-    BOOST_CHECK_EQUAL(res, 33);
-    res = dummy_mock(1, helper(2, 1));
-    BOOST_CHECK_EQUAL(res, 0);
-    res = dummy_mock(2, helper(2, 2));
-    BOOST_CHECK_EQUAL(res, 0);
-    handler.schedule_assertion([](std::size_t expected, std::size_t actual) {
-            BOOST_CHECK_EQUAL(expected, 1);
-            BOOST_CHECK_EQUAL(actual, 1);
-    });
+        };
+        handler1.schedule_assertion(assertion);
+        handler2.schedule_assertion(assertion);
+        handler3.schedule_assertion(assertion);
+        handler1.for_arguments(932).will_return(99);
+        handler2.for_arguments(1).will_return(-9423);
+        handler3.for_arguments(-44).will_return(0);
+        BOOST_CHECK_EQUAL(dummy_mock(1), -9423);
+        BOOST_CHECK_EQUAL(dummy_mock(-44), 0);
+        BOOST_CHECK_EQUAL(dummy_mock(932), 99);
+    } while (0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
