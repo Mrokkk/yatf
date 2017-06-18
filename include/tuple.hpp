@@ -93,11 +93,6 @@ struct arguments_impl<expand<N...>, T...> : public argument<N, T>... {
     }
 
     template <std::size_t M>
-    const value_type<M> &get() const {
-        return argument<M, value_type<M>>::get();
-    }
-
-    template <std::size_t M>
     bool compare(const value_type<M> &val) {
         return argument<M, value_type<M>>::match(val);
     }
