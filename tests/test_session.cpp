@@ -98,5 +98,9 @@ BOOST_FIXTURE_TEST_CASE(can_run_one_test, yatf_fixture) {
     printf_ = print;
 }
 
+BOOST_FIXTURE_TEST_CASE(can_be_created, yatf_fixture) {
+    test_session ts;
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -216,7 +216,7 @@ BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_lambda, yatf_fixture) {
 }
 
 template <typename R>
-void test_matching() {
+void test_matching_directly() {
     do {
         mock<R()> dummy_mock;
         do {
@@ -287,8 +287,8 @@ void test_matching() {
 }
 
 BOOST_FIXTURE_TEST_CASE(can_match_arguments_directly, yatf_fixture) {
-    test_matching<void>();
-    test_matching<int>();
+    test_matching_directly<void>();
+    test_matching_directly<int>();
 }
 
 BOOST_FIXTURE_TEST_CASE(can_match_arguments_and_set_return_values, yatf_fixture) {
@@ -309,6 +309,91 @@ BOOST_FIXTURE_TEST_CASE(can_match_arguments_and_set_return_values, yatf_fixture)
         BOOST_CHECK_EQUAL(dummy_mock(1), -9423);
         BOOST_CHECK_EQUAL(dummy_mock(-44), 0);
         BOOST_CHECK_EQUAL(dummy_mock(932), 99);
+    } while (0);
+}
+
+BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_matchers, yatf_fixture) {
+    mock<int(int)> dummy_mock;
+    do {
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            auto assertion = [](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 1);
+            };
+            handler.schedule_assertion(assertion);
+            handler.for_arguments(::yatf::eq(3)).will_return(2);
+            BOOST_CHECK_EQUAL(dummy_mock(194), int());
+            BOOST_CHECK_EQUAL(dummy_mock(3), 2);
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            auto assertion = [](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 4);
+            };
+            handler.schedule_assertion(assertion);
+            handler.for_arguments(::yatf::ne(3)).will_return(2);
+            BOOST_CHECK_EQUAL(dummy_mock(0), 2);
+            BOOST_CHECK_EQUAL(dummy_mock(1), 2);
+            BOOST_CHECK_EQUAL(dummy_mock(2), 2);
+            BOOST_CHECK_EQUAL(dummy_mock(3), int());
+            BOOST_CHECK_EQUAL(dummy_mock(4), 2);
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            auto assertion = [](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 223);
+            };
+            handler.schedule_assertion(assertion);
+            handler.for_arguments(::yatf::gt(32)).will_return(2);
+            for (auto i = 0; i <= 32; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), int());
+            }
+            for (auto i = 33; i < 256; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), 2);
+            }
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            auto assertion = [](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 224);
+            };
+            handler.schedule_assertion(assertion);
+            handler.for_arguments(::yatf::ge(32)).will_return(2);
+            for (auto i = 0; i < 32; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), int());
+            }
+            for (auto i = 32; i < 256; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), 2);
+            }
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            auto assertion = [](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 32);
+            };
+            handler.schedule_assertion(assertion);
+            handler.for_arguments(::yatf::lt(32)).will_return(2);
+            for (auto i = 0; i < 32; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), 2);
+            }
+            for (auto i = 32; i < 256; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), int());
+            }
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            auto assertion = [](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 33);
+            };
+            handler.schedule_assertion(assertion);
+            handler.for_arguments(::yatf::le(32)).will_return(2);
+            for (auto i = 0; i <= 32; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), 2);
+            }
+            for (auto i = 33; i < 256; ++i) {
+                BOOST_CHECK_EQUAL(dummy_mock(i), int());
+            }
+        } while (0);
     } while (0);
 }
 

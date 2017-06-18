@@ -10,6 +10,11 @@ extern any_value _;
 
 namespace detail {
 
+template <typename T>
+struct matcher {
+    virtual bool match(const T &lhs) = 0;
+};
+
 template <std::size_t ...N>
 struct expand {
     using type = expand<N...>;
@@ -33,6 +38,8 @@ class argument {
 
     T value_;
     bool (*matcher_)(const T &) = nullptr;
+    char data_[2 * sizeof(matcher<T>) + sizeof(T)];
+    matcher<T> *m_ = nullptr;
 
 public:
 
@@ -45,12 +52,15 @@ public:
     }
 
     template <typename Matcher>
-    explicit argument(const Matcher &) : matcher_(&Matcher::match) {
+    explicit argument(const Matcher &m) : m_(new(data_) Matcher(m)) {
     }
 
     bool match(const T &v) {
         if (matcher_) {
             return matcher_(v);
+        }
+        if (m_) {
+            return m_->match(v);
         }
         return value_ == v;
     }
@@ -126,6 +136,46 @@ struct arguments<> final {
         return true;
     }
 };
+
+#define MATCHER(name, lhs) \
+    template <typename T> \
+    struct name##_matcher : public yatf::detail::matcher<T> { \
+        explicit name##_matcher(const T &val) : arg(val) { \
+        } \
+        bool match(const T &lhs) override; \
+    private: \
+        const T arg; \
+    }; \
+    template <typename T> \
+    name##_matcher<T> name(const T &v) { \
+        return name##_matcher<T>(v); \
+    } \
+    template <typename T> \
+    bool name##_matcher<T>::match(const T &lhs)
+
+MATCHER(eq, n) {
+    return arg == n;
+}
+
+MATCHER(ne, n) {
+    return arg != n;
+}
+
+MATCHER(ge, n) {
+    return n >= arg;
+}
+
+MATCHER(gt, n) {
+    return n > arg;
+}
+
+MATCHER(le, n) {
+    return n <= arg;
+}
+
+MATCHER(lt, n) {
+    return n < arg;
+}
 
 } // namespace yatf
 
