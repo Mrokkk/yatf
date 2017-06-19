@@ -7,11 +7,27 @@
 #include "../include/yatf.hpp"
 
 using yatf::_;
+using yatf::field;
 using namespace yatf::detail;
 
 #define GET_HANDLER(mock, handler_name) \
     auto handler_name = mock.get_handler(); \
     dummy_mock.register_handler(handler_name);
+
+struct helper {
+
+    int a = 0;
+
+    helper() = default;
+
+    helper(int a) : a(a) {
+    }
+
+    bool operator==(const helper &h) {
+        return h.a == a;
+    }
+
+};
 
 BOOST_AUTO_TEST_SUITE(mocks_suite)
 
@@ -25,9 +41,11 @@ BOOST_FIXTURE_TEST_CASE(can_create_handler, yatf_fixture) {
     test_handler_creating<void()>();
     test_handler_creating<void(int)>();
     test_handler_creating<void(int, int)>();
+    test_handler_creating<void(helper)>();
     test_handler_creating<int()>();
     test_handler_creating<int(int)>();
     test_handler_creating<int(int, int)>();
+    test_handler_creating<int(helper)>();
 }
 
 template <typename Signature>
@@ -60,9 +78,11 @@ BOOST_FIXTURE_TEST_CASE(can_expect_number_of_calls, yatf_fixture) {
     test_expecting_calls<void()>();
     test_expecting_calls<void(int)>();
     test_expecting_calls<void(int, int)>();
+    test_expecting_calls<void(helper)>();
     test_expecting_calls<int()>();
     test_expecting_calls<int(int)>();
     test_expecting_calls<int(int, int)>();
+    test_expecting_calls<int(helper)>();
 }
 
 template <typename R, typename ...Args>
@@ -96,9 +116,11 @@ BOOST_FIXTURE_TEST_CASE(can_count_actual_nr_of_calls, yatf_fixture) {
     test_calling<void>();
     test_calling<void, int>();
     test_calling<void, int, int>();
+    test_calling<void, helper>();
     test_calling<int>();
     test_calling<int, int>();
     test_calling<int, int, int>();
+    test_calling<int, helper>();
 }
 
 template <typename R, typename ...Args>
@@ -118,6 +140,7 @@ BOOST_FIXTURE_TEST_CASE(can_specify_return_value, yatf_fixture) {
     test_return_value<int>();
     test_return_value<int, int>();
     test_return_value<int, int, int>();
+    test_return_value<int, helper>();
 }
 
 template <typename R, typename ...Args>
@@ -133,6 +156,7 @@ BOOST_FIXTURE_TEST_CASE(mock_will_return_default_value_when_no_handler, yatf_fix
     test_default_return_value<int>();
     test_default_return_value<int, int>();
     test_default_return_value<int, int, int>();
+    test_default_return_value<int, helper>();
 }
 
 BOOST_FIXTURE_TEST_CASE(dummy_test_for_arguments, yatf_fixture) {
@@ -208,6 +232,21 @@ void test_matching_by_lambda() {
             dummy_mock(32, 0);
         } while (0);
     } while (0);
+    do {
+        mock<R(helper)> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 2);
+            });
+            handler.match_args([](helper h) {
+                return h.a == 32;
+            });
+            dummy_mock(helper(23));
+            dummy_mock(helper(32));
+            dummy_mock(helper(32));
+        } while (0);
+    } while (0);
 }
 
 BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_lambda, yatf_fixture) {
@@ -281,6 +320,29 @@ void test_matching_directly() {
             handler.for_arguments(_, _);
             for (auto i = 0; i < 32; ++i) {
                 dummy_mock(i, i + 1024);
+            }
+        } while (0);
+    } while (0);
+    do {
+        mock<R(helper)> dummy_mock;
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 1);
+            });
+            handler.for_arguments(helper(32));
+            dummy_mock(helper(2));
+            dummy_mock(helper(31));
+            dummy_mock(helper(32));
+        } while (0);
+        do {
+            GET_HANDLER(dummy_mock, handler);
+            handler.schedule_assertion([](std::size_t, std::size_t actual) {
+                BOOST_CHECK_EQUAL(actual, 32);
+            });
+            handler.for_arguments(_);
+            for (auto i = 0; i < 32; ++i) {
+                dummy_mock(helper(i));
             }
         } while (0);
     } while (0);
@@ -394,6 +456,38 @@ BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_matchers, yatf_fixture) {
                 BOOST_CHECK_EQUAL(dummy_mock(i), int());
             }
         } while (0);
+    } while (0);
+}
+
+BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_field, yatf_fixture) {
+    do {
+        mock<void(helper)> dummy_mock;
+        GET_HANDLER(dummy_mock, handler);
+        auto assertion = [](std::size_t, std::size_t actual) {
+            BOOST_CHECK_EQUAL(actual, 2);
+        };
+        handler.schedule_assertion(assertion);
+        handler.for_arguments(field(&helper::a, 439));
+        dummy_mock(helper(3));
+        dummy_mock(helper(0));
+        dummy_mock(helper(440));
+        dummy_mock(helper(438));
+        dummy_mock(helper(439));
+        dummy_mock(helper(439));
+    } while (0);
+    do {
+        mock<int(helper)> dummy_mock;
+        GET_HANDLER(dummy_mock, handler);
+        auto assertion = [](std::size_t, std::size_t actual) {
+            BOOST_CHECK_EQUAL(actual, 1);
+        };
+        handler.schedule_assertion(assertion);
+        handler.for_arguments(field(&helper::a, 439)).will_return(999);
+        BOOST_CHECK_EQUAL(dummy_mock(helper(3)), int());
+        BOOST_CHECK_EQUAL(dummy_mock(helper(0)), int());
+        BOOST_CHECK_EQUAL(dummy_mock(helper(440)), int());
+        BOOST_CHECK_EQUAL(dummy_mock(helper(438)), int());
+        BOOST_CHECK_EQUAL(dummy_mock(helper(439)), 999);
     } while (0);
 }
 
