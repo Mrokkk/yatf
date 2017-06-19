@@ -12,7 +12,7 @@ using namespace yatf::detail;
 
 #define GET_HANDLER(mock, handler_name) \
     auto handler_name = mock.get_handler(); \
-    dummy_mock.register_handler(handler_name);
+    mock.register_handler(handler_name);
 
 struct helper {
 
@@ -489,6 +489,38 @@ BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_field, yatf_fixture) {
         BOOST_CHECK_EQUAL(dummy_mock(helper(438)), int());
         BOOST_CHECK_EQUAL(dummy_mock(helper(439)), 999);
     } while (0);
+}
+
+struct some_struct {
+    MOCK(int(int), some_method);
+    MOCK(int(int), some_other_method);
+};
+
+BOOST_FIXTURE_TEST_CASE(can_mock_methods, yatf_fixture) {
+    some_struct object;
+    GET_HANDLER(object.some_method, handler);
+    handler.for_arguments(3).will_return(33);
+    BOOST_CHECK_EQUAL(object.some_method(2), int());
+    BOOST_CHECK_EQUAL(object.some_method(3), 33);
+}
+
+BOOST_FIXTURE_TEST_CASE(require_call_works, yatf_fixture) {
+    mock<void()> dummy_mock;
+    dummy_test_case tc{"suite", "name"};
+    test_session::get().current_test_case(&tc);
+    do {
+        REQUIRE_CALL(dummy_mock);
+    } while (0);
+    BOOST_CHECK_EQUAL(tc.assertions, 1);
+    BOOST_CHECK_EQUAL(tc.failed, 1);
+    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":512 dummy_mock: expected to be called: 1; actual: 0\n"));
+    BOOST_CHECK_EQUAL(get_buffer(), comp);
+    reset_buffer();
+    do {
+        REQUIRE_CALL(dummy_mock);
+        dummy_mock();
+    } while (0);
+    BOOST_CHECK_EQUAL(get_buffer(), "");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
