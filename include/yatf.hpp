@@ -832,7 +832,7 @@ printf_t printf_;
 
 } // namespace detail
 
-any_value _;
+detail::any_value _;
 
 inline config read_config(unsigned argc, const char **argv) {
     config c;
