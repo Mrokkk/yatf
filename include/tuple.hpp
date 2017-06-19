@@ -38,7 +38,7 @@ class argument {
 
     T value_;
     bool (*matcher_)(const T &) = nullptr;
-    char data_[2 * sizeof(matcher<T>) + sizeof(T)];
+    char data_[3 * sizeof(matcher<T>) + 2 * sizeof(T)];
     matcher<T> *m_ = nullptr;
 
 public:
@@ -65,6 +65,29 @@ public:
         return value_ == v;
     }
 
+};
+
+template <typename T, typename U>
+struct field_matcher : public matcher<T> {
+
+    explicit field_matcher(U T::*member, const U &value)
+        : offset_(offset_of(member)), value_(new(data_) U(value)) {
+    }
+
+    bool match(const T &s) override {
+        return *reinterpret_cast<const U *>(reinterpret_cast<const char *>(&s) + offset_) == *value_;
+    }
+
+private:
+
+    constexpr std::size_t offset_of(U T::*member) const {
+        return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member))
+            - static_cast<char *>(nullptr);
+    }
+
+    std::size_t offset_;
+    char data_[sizeof(U)];
+    U *value_ = nullptr;
 };
 
 template <std::size_t L, std::size_t I = 0, typename S = expand<>>
@@ -142,7 +165,7 @@ struct arguments<> final {
         const T arg; \
     }; \
     template <typename T> \
-    name##_matcher<T> name(const T &v) { \
+    inline name##_matcher<T> name(const T &v) { \
         return name##_matcher<T>(v); \
     } \
     template <typename T> \
@@ -170,6 +193,11 @@ MATCHER(le, n) {
 
 MATCHER(lt, n) {
     return n < arg;
+}
+
+template <typename T, typename U>
+inline detail::field_matcher<T, U> field(U T::*member, const U &val) {
+    return detail::field_matcher<T, U>(member, val);
 }
 
 } // namespace yatf
