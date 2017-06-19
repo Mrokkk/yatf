@@ -204,14 +204,6 @@ struct list final {
             return it.ptr_ != ptr_;
         }
 
-        node *ptr() {
-            return ptr_;
-        }
-
-        const node *ptr() const {
-            return ptr_;
-        }
-
     };
 
 private:
@@ -818,29 +810,12 @@ public:
     template <typename T> \
     bool name##_matcher<T>::match(const T &lhs)
 
-MATCHER(eq, n) {
-    return arg == n;
-}
-
-MATCHER(ne, n) {
-    return arg != n;
-}
-
-MATCHER(ge, n) {
-    return n >= arg;
-}
-
-MATCHER(gt, n) {
-    return n > arg;
-}
-
-MATCHER(le, n) {
-    return n <= arg;
-}
-
-MATCHER(lt, n) {
-    return n < arg;
-}
+MATCHER(eq, n) { return arg == n; }
+MATCHER(ne, n) { return arg != n; }
+MATCHER(ge, n) { return n >= arg; }
+MATCHER(gt, n) { return n > arg; }
+MATCHER(le, n) { return n <= arg; }
+MATCHER(lt, n) { return n < arg; }
 
 template <typename T, typename U>
 inline detail::field_matcher<T, U> field(U T::*member, const U &val) {
