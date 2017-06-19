@@ -17,10 +17,6 @@ struct config final {
 
 using printf_t = int (*)(const char *, ...);
 
-struct any_value {};
-
-extern any_value _;
-
 namespace detail {
 
 struct empty_fixture {};
@@ -453,6 +449,8 @@ public:
 
 };
 
+struct any_value {};
+
 template <typename T>
 struct matcher {
     virtual bool match(const T &lhs) = 0;
@@ -821,6 +819,8 @@ template <typename T, typename U>
 inline detail::field_matcher<T, U> field(U T::*member, const U &val) {
     return detail::field_matcher<T, U>(member, val);
 }
+
+extern detail::any_value _;
 
 #ifdef YATF_MAIN
 
