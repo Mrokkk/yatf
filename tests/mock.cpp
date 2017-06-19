@@ -160,7 +160,7 @@ BOOST_FIXTURE_TEST_CASE(mock_will_return_default_value_when_no_handler, yatf_fix
 }
 
 BOOST_FIXTURE_TEST_CASE(dummy_test_for_arguments, yatf_fixture) {
-    ::yatf::arguments<> a;
+    ::yatf::detail::arguments<> a;
     BOOST_CHECK(a.compare());
 }
 
