@@ -470,7 +470,7 @@ public:
     }
 
     template <typename U>
-    void set2(const U &v) {
+    void set_by_other_type(const U &v) {
         value_ = new(data_) U(v);
     }
 
@@ -497,13 +497,20 @@ public:
         return value_ != nullptr;
     }
 
+    bool operator==(const T &rhs) const {
+        if (value_) {
+            return *value_ == rhs;
+        }
+        return false;
+    }
+
 };
 
 template <>
 class unary_container<void> final {
 };
 
-struct any_value {};
+struct any_value final {};
 
 template <typename T>
 struct matcher {
@@ -532,8 +539,8 @@ struct choose_nth<0, T, U...> {
 template <std::size_t N, typename T>
 class argument {
 
-    T value_;
     bool (*matcher_)(const T &) = nullptr;
+    unary_container<T> value_;
     unary_container<matcher<T>, 3 * sizeof(matcher<T>) + 2 * sizeof(T)> m_;
 
 public:
@@ -541,14 +548,12 @@ public:
     constexpr explicit argument(const T &val) : value_(val) {
     }
 
-    constexpr explicit argument(any_value) : matcher_([](const T &) {
-            return true;
-        }) {
+    constexpr explicit argument(any_value) : matcher_([](const T &) { return true; }) {
     }
 
     template <typename Matcher>
     explicit argument(const Matcher &m) {
-        m_.set2(m);
+        m_.set_by_other_type(m);
     }
 
     bool match(const T &v) {
@@ -656,8 +661,8 @@ class mock_handler final {
     std::size_t expected_nr_of_calls_ = 1;
     std::size_t actual_nr_of_calls_ = 0;
     unary_container<R> return_value_;
-    typename list<mock_handler>::node node_;
     unary_container<arguments<Args...>> arguments_;
+    typename list<mock_handler>::node node_;
 
     template <typename T = R>
     typename std::enable_if<
