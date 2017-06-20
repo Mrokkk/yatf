@@ -449,10 +449,57 @@ public:
 
 };
 
+template <typename T, std::size_t Size = 0>
+class unary_container final {
+
+    unsigned char data_[Size == 0 ? sizeof(T) : Size];
+    T *value_ = nullptr;
+
+public:
+
+    constexpr unary_container() : data_() {
+    }
+
+    ~unary_container() {
+        if (value_) {
+            value_->~T();
+        }
+    }
+
+    template <typename U>
+    void set(const U &v) {
+        value_ = new(data_) U(v);
+    }
+
+    T &get() const {
+        if (value_ == nullptr) {
+            return *reinterpret_cast<T *>(const_cast<unsigned char *>(data_));
+        }
+        return *value_;
+    }
+
+    T *operator->() {
+        if (value_ == nullptr) {
+            return reinterpret_cast<T *>(const_cast<unsigned char *>(data_));
+        }
+        return value_;
+    }
+
+    operator bool() const {
+        return value_ != nullptr;
+    }
+
+};
+
+template <>
+class unary_container<void> final {
+};
+
 struct any_value {};
 
 template <typename T>
 struct matcher {
+    virtual ~matcher() {}
     virtual bool match(const T &lhs) = 0;
 };
 
@@ -479,8 +526,7 @@ class argument {
 
     T value_;
     bool (*matcher_)(const T &) = nullptr;
-    char data_[3 * sizeof(matcher<T>) + 2 * sizeof(T)];
-    matcher<T> *m_ = nullptr;
+    unary_container<matcher<T>, 3 * sizeof(matcher<T>) + 2 * sizeof(T)> m_;
 
 public:
 
@@ -493,7 +539,8 @@ public:
     }
 
     template <typename Matcher>
-    explicit argument(const Matcher &m) : m_(new(data_) Matcher(m)) {
+    explicit argument(const Matcher &m) {
+        m_.set(m);
     }
 
     bool match(const T &v) {
@@ -512,11 +559,12 @@ template <typename T, typename U>
 struct field_matcher : public matcher<T> {
 
     explicit field_matcher(U T::*member, const U &value)
-        : offset_(offset_of(member)), value_(new(data_) U(value)) {
+            : offset_(offset_of(member)) {
+        value_.set(value);
     }
 
     bool match(const T &s) override {
-        return *reinterpret_cast<const U *>(reinterpret_cast<const char *>(&s) + offset_) == *value_;
+        return *reinterpret_cast<const U *>(reinterpret_cast<const char *>(&s) + offset_) == value_.get();
     }
 
 private:
@@ -527,8 +575,8 @@ private:
     }
 
     std::size_t offset_;
-    char data_[sizeof(U)];
-    U *value_ = nullptr;
+    unary_container<U> value_;
+
 };
 
 template <std::size_t L, std::size_t I = 0, typename S = expand<>>
@@ -595,32 +643,6 @@ struct arguments<> final {
 };
 
 template <typename T>
-class return_value final {
-
-    unsigned char data_[sizeof(T)];
-    T *value_ = reinterpret_cast<T *>(data_);
-
-public:
-
-    return_value() : data_() {
-    }
-
-    template <typename ...Args>
-    void set(const Args &...v) {
-        value_ = new(data_) T(v...);
-    }
-
-    T &get() const {
-        return *value_;
-    }
-
-};
-
-template <>
-class return_value<void> final {
-};
-
-template <typename T>
 class mock;
 
 template <typename R, typename ...Args>
@@ -630,7 +652,7 @@ class mock_handler final {
     bool (*matcher_)(Args ...) = nullptr;
     std::size_t expected_nr_of_calls_ = 1;
     std::size_t actual_nr_of_calls_ = 0;
-    return_value<R> return_value_;
+    unary_container<R> return_value_;
     typename list<mock_handler>::node node_;
 
     unsigned char data_[sizeof(arguments<Args...>)];
@@ -708,7 +730,7 @@ class mock final {};
 template <typename R, typename ...Args>
 class mock<R(Args...)> final {
 
-    return_value<R> default_return_value_;
+    unary_container<R> default_return_value_;
     list<mock_handler<R, Args...>> handlers_;
 
 public:
