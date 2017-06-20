@@ -460,6 +460,9 @@ public:
     constexpr unary_container() : data_() {
     }
 
+    constexpr explicit unary_container(const T &val) : value_(new(data_) T(val)) {
+    }
+
     ~unary_container() {
         if (value_) {
             value_->~T();
@@ -467,8 +470,13 @@ public:
     }
 
     template <typename U>
-    void set(const U &v) {
+    void set2(const U &v) {
         value_ = new(data_) U(v);
+    }
+
+    template <typename ...Args>
+    void set(const Args &...v) {
+        value_ = new(data_) T(v...);
     }
 
     T &get() const {
@@ -530,17 +538,17 @@ class argument {
 
 public:
 
-    explicit argument(const T &val) : value_(val) {
+    constexpr explicit argument(const T &val) : value_(val) {
     }
 
-    explicit argument(any_value) : matcher_([](const T &) {
+    constexpr explicit argument(any_value) : matcher_([](const T &) {
             return true;
         }) {
     }
 
     template <typename Matcher>
     explicit argument(const Matcher &m) {
-        m_.set(m);
+        m_.set2(m);
     }
 
     bool match(const T &v) {
@@ -558,9 +566,8 @@ public:
 template <typename T, typename U>
 struct field_matcher : public matcher<T> {
 
-    explicit field_matcher(U T::*member, const U &value)
-            : offset_(offset_of(member)) {
-        value_.set(value);
+    constexpr explicit field_matcher(U T::*member, const U &value)
+            : offset_(offset_of(member)), value_(value) {
     }
 
     bool match(const T &s) override {
@@ -629,10 +636,6 @@ struct arguments final : public arguments_impl<typename range<sizeof...(T)>::typ
         : arguments_impl<typename range<sizeof...(T)>::type, T...>(values...) {
     }
 
-    static constexpr std::size_t size() {
-        return sizeof...(T);
-    }
-
 };
 
 template <>
@@ -654,9 +657,7 @@ class mock_handler final {
     std::size_t actual_nr_of_calls_ = 0;
     unary_container<R> return_value_;
     typename list<mock_handler>::node node_;
-
-    unsigned char data_[sizeof(arguments<Args...>)];
-    arguments<Args...> *arguments_ = nullptr;
+    unary_container<arguments<Args...>> arguments_;
 
     template <typename T = R>
     typename std::enable_if<
@@ -666,7 +667,7 @@ class mock_handler final {
     }
 
     bool operator()(const Args &...args) {
-        if (arguments_ != nullptr) {
+        if (arguments_) {
             bool is_matched = arguments_->compare(args...);
             if (is_matched) {
                 ++actual_nr_of_calls_;
@@ -707,7 +708,7 @@ public:
 
     template <typename ...T>
     mock_handler &for_arguments(T ...args) {
-        arguments_ = new(data_) arguments<Args...>(args...);
+        arguments_.set(args...);
         return *this;
     }
 
