@@ -1,5 +1,7 @@
 #include <ctime>
 #include <limits>
+#include <memory>
+#include <utility>
 #include <cstdlib>
 #include <boost/test/unit_test.hpp>
 
@@ -513,7 +515,7 @@ BOOST_FIXTURE_TEST_CASE(require_call_works, yatf_fixture) {
     } while (0);
     BOOST_CHECK_EQUAL(tc.assertions, 1);
     BOOST_CHECK_EQUAL(tc.failed, 1);
-    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":512 dummy_mock: expected to be called: 1; actual: 0\n"));
+    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":514 dummy_mock: expected to be called: 1; actual: 0\n"));
     BOOST_CHECK_EQUAL(get_buffer(), comp);
     reset_buffer();
     do {
