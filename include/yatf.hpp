@@ -671,6 +671,11 @@ struct arguments<> final {
     }
 };
 
+template <typename ...Args>
+struct is_empty {
+    constexpr static const bool value = sizeof...(Args) == 0;
+};
+
 template <typename T>
 class mock;
 
@@ -692,7 +697,18 @@ class mock_handler final {
         return return_value_.get();
     }
 
-    bool operator()(const Args &...args) {
+    template <typename T = bool>
+    typename std::enable_if<
+        is_empty<Args...>::value, T
+    >::type operator()() {
+        ++actual_nr_of_calls_;
+        return true;
+    }
+
+    template <typename T = bool>
+    typename std::enable_if<
+        !is_empty<Args...>::value, T
+    >::type operator()(const Args &...args) {
         if (arguments_) {
             bool is_matched = arguments_->compare(args...);
             if (is_matched) {
@@ -719,7 +735,10 @@ public:
         }
     }
 
-    mock_handler &match_args(bool (*matcher)(Args ...)) {
+    template <typename T = mock_handler &>
+    typename std::enable_if<
+        !is_empty<Args...>::value, T
+    >::type match_args(bool (*matcher)(Args ...)) {
         matcher_ = matcher;
         return *this;
     }
@@ -732,8 +751,10 @@ public:
         return *this;
     }
 
-    template <typename ...T>
-    mock_handler &for_arguments(T ...args) {
+    template <typename U = mock_handler &, typename ...T>
+    typename std::enable_if<
+        !is_empty<T...>::value, U
+    >::type for_arguments(T ...args) {
         arguments_.set(args...);
         return *this;
     }

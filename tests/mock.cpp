@@ -169,31 +169,6 @@ BOOST_FIXTURE_TEST_CASE(dummy_test_for_arguments, yatf_fixture) {
 template <typename R>
 void test_matching_by_lambda() {
     do {
-        mock<R()> dummy_mock;
-        do {
-            GET_HANDLER(dummy_mock, handler);
-            handler.schedule_assertion([](std::size_t, std::size_t actual) {
-                BOOST_CHECK_EQUAL(actual, 2);
-            });
-            handler.match_args([]() {
-                return true;
-            });
-            dummy_mock();
-            dummy_mock();
-        } while (0);
-        do {
-            GET_HANDLER(dummy_mock, handler);
-            handler.schedule_assertion([](std::size_t, std::size_t actual) {
-                BOOST_CHECK_EQUAL(actual, 0);
-            });
-            handler.match_args([]() {
-                return false;
-            });
-            dummy_mock();
-            dummy_mock();
-        } while (0);
-    } while (0);
-    do {
         mock<R(int)> dummy_mock;
         do {
             GET_HANDLER(dummy_mock, handler);
@@ -258,18 +233,6 @@ BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_lambda, yatf_fixture) {
 
 template <typename R>
 void test_matching_directly() {
-    do {
-        mock<R()> dummy_mock;
-        do {
-            GET_HANDLER(dummy_mock, handler);
-            handler.schedule_assertion([](std::size_t, std::size_t actual) {
-                BOOST_CHECK_EQUAL(actual, 2);
-            });
-            handler.for_arguments();
-            dummy_mock();
-            dummy_mock();
-        } while (0);
-    } while (0);
     do {
         mock<R(int)> dummy_mock;
         do {
@@ -515,7 +478,7 @@ BOOST_FIXTURE_TEST_CASE(require_call_works, yatf_fixture) {
     } while (0);
     BOOST_CHECK_EQUAL(tc.assertions, 1);
     BOOST_CHECK_EQUAL(tc.failed, 1);
-    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":514 dummy_mock: expected to be called: 1; actual: 0\n"));
+    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":477 dummy_mock: expected to be called: 1; actual: 0\n"));
     BOOST_CHECK_EQUAL(get_buffer(), comp);
     reset_buffer();
     do {
