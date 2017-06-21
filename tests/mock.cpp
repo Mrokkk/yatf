@@ -36,7 +36,12 @@ BOOST_AUTO_TEST_SUITE(mocks_suite)
 template <typename Signature>
 void test_handler_creating() {
     mock<Signature> dummy_mock;
-    GET_HANDLER(dummy_mock, handler);
+    do {
+        GET_HANDLER(dummy_mock, handler);
+    } while (0);
+    do {
+        auto handler = dummy_mock.get_handler();
+    } while (0);
 }
 
 BOOST_FIXTURE_TEST_CASE(can_create_handler, yatf_fixture) {
@@ -478,7 +483,7 @@ BOOST_FIXTURE_TEST_CASE(require_call_works, yatf_fixture) {
     } while (0);
     BOOST_CHECK_EQUAL(get_assertions(), 1);
     BOOST_CHECK_EQUAL(get_failed(), 1);
-    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":477 dummy_mock: expected to be called: 1; actual: 0\n"));
+    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":482 dummy_mock: expected to be called: 1; actual: 0\n"));
     BOOST_CHECK_EQUAL(get_buffer(), comp);
     reset_buffer();
     do {
