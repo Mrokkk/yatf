@@ -17,10 +17,6 @@ struct config final {
 
 using printf_t = int (*)(const char *, ...);
 
-struct any_value {};
-
-extern any_value _;
-
 namespace detail {
 
 struct empty_fixture {};
@@ -29,7 +25,7 @@ inline int compare_strings(const char *s1, const char *s2) {
     while(*s1 && (*s1 == *s2)) {
         ++s1, ++s2;
     }
-    return *(const unsigned char*)s1 - *(const unsigned char*)s2;
+    return *s1 - *s2;
 }
 
 inline char *find(char *str, char c) {
@@ -204,14 +200,6 @@ struct list final {
             return it.ptr_ != ptr_;
         }
 
-        node *ptr() {
-            return ptr_;
-        }
-
-        const node *ptr() const {
-            return ptr_;
-        }
-
     };
 
 private:
@@ -279,25 +267,28 @@ struct test_session final {
     class test_case {
 
         list<test_case>::node node_;
+        std::size_t assertions_ = 0;
+        std::size_t failed_ = 0;
 
-    public:
+    protected:
+
         const char *suite_name;
         const char *test_name;
-        std::size_t assertions = 0;
-        std::size_t failed = 0;
+
+    public:
 
         void require_true(bool condition, const char *condition_str, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             if (!condition) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is false\n";
             }
         }
 
         void require_false(bool condition, const char *condition_str, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             if (condition) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is true\n";
             }
         }
@@ -305,20 +296,20 @@ struct test_session final {
         template <typename T1, typename T2>
         void require_eq(const T1 &lhs, const T2 &rhs, const char *lhs_str, const char *rhs_str,
                 const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             bool cond = (lhs == rhs);
             if (!cond) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs_str
                          << "\' isn't \'" << rhs_str << "\': " << lhs << " != " << rhs << "\n";
             }
         }
 
         void require_eq(const char *lhs, const char *rhs, const char *, const char *, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             bool cond = compare_strings(lhs, rhs) == 0;
             if (!cond) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs
                          << "\' isn't \'" << rhs << "\n";
             }
@@ -326,9 +317,9 @@ struct test_session final {
 
         void require_call(const char *mock_name, std::size_t expected_nr_of_calls,
                 std::size_t actual_nr_of_calls, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             if (expected_nr_of_calls != actual_nr_of_calls) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " " << mock_name
                          << ": expected to be called: " << expected_nr_of_calls << "; actual: "
                          << actual_nr_of_calls << "\n";
@@ -338,6 +329,7 @@ struct test_session final {
         virtual void test_body() = 0;
 
         friend test_session;
+        friend yatf_fixture;
 
     };
 
@@ -379,16 +371,16 @@ private:
     }
 
     void test_result(test_case &t) const {
-        if (t.failed) {
+        if (t.failed_) {
             print_in_color(messages::get(messages::msg::fail), printer::color::red);
-            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions) << " assertions)\n";
+            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
         }
         else {
             if (config_.fails_only) return;
             if (config_.oneliners)
                 printer_ << printer::cursor_movement::up;
             print_in_color(messages::get(messages::msg::pass), printer::color::green);
-            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions) << " assertions)\n";
+            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
         }
     }
 
@@ -407,7 +399,7 @@ private:
                 test_start_message(test);
                 current_test_case_ = &test;
                 test.test_body();
-                auto result = test.failed;
+                auto result = test.failed_;
                 test_result(test);
                 return result;
             }
@@ -442,7 +434,7 @@ public:
             test_start_message(test);
             current_test_case_ = &test;
             test.test_body();
-            if (test.failed) {
+            if (test.failed_) {
                 ++failed;
             }
             test_result(test);
@@ -461,8 +453,93 @@ public:
 
 };
 
+namespace helpers {
+
+template <typename T>
+inline constexpr T &&forward(typename std::remove_reference<T>::type &v) noexcept {
+    return static_cast<T &&>(v);
+}
+
+template<typename T>
+inline constexpr T &&forward(typename std::remove_reference<T>::type &&v) noexcept {
+    static_assert(!std::is_lvalue_reference<T>::value, "template argument"
+        " substituting T is an lvalue reference type");
+    return static_cast<T &&>(v);
+}
+
+template <typename T>
+inline constexpr typename std::remove_reference<T>::type&& move(T &&v) noexcept {
+    return static_cast<typename std::remove_reference<T>::type &&>(v);
+}
+
+} // namespace helpers
+
+template <typename T, std::size_t Size = 0>
+class unary_container final {
+
+    unsigned char data_[Size == 0 ? sizeof(T) : Size];
+    T *value_ = nullptr;
+
+public:
+
+    constexpr unary_container() : data_() {
+    }
+
+    constexpr explicit unary_container(const T &val) : value_(new(data_) T(val)) {
+    }
+
+    ~unary_container() {
+        if (value_) {
+            value_->~T();
+        }
+    }
+
+    template <typename U>
+    void set_by_other_type(const U &v) {
+        value_ = new(data_) U(v);
+    }
+
+    template <typename ...Args>
+    void set(const Args &...v) {
+        value_ = new(data_) T(v...);
+    }
+
+    T &get() const {
+        if (value_ == nullptr) {
+            return *reinterpret_cast<T *>(const_cast<unsigned char *>(data_));
+        }
+        return *value_;
+    }
+
+    T *operator->() {
+        if (value_ == nullptr) {
+            return reinterpret_cast<T *>(const_cast<unsigned char *>(data_));
+        }
+        return value_;
+    }
+
+    operator bool() const {
+        return value_ != nullptr;
+    }
+
+    bool operator==(const T &rhs) const {
+        if (value_) {
+            return *value_ == rhs;
+        }
+        return false;
+    }
+
+};
+
+template <>
+class unary_container<void> final {
+};
+
+struct any_value final {};
+
 template <typename T>
 struct matcher {
+    virtual ~matcher() {}
     virtual bool match(const T &lhs) = 0;
 };
 
@@ -487,23 +564,21 @@ struct choose_nth<0, T, U...> {
 template <std::size_t N, typename T>
 class argument {
 
-    T value_;
     bool (*matcher_)(const T &) = nullptr;
-    char data_[3 * sizeof(matcher<T>) + 2 * sizeof(T)];
-    matcher<T> *m_ = nullptr;
+    unary_container<T> value_;
+    unary_container<matcher<T>, 3 * sizeof(matcher<T>) + 2 * sizeof(T)> m_;
 
 public:
 
-    explicit argument(const T &val) : value_(val) {
+    constexpr explicit argument(const T &val) : value_(val) {
     }
 
-    explicit argument(any_value) : matcher_([](const T &) {
-            return true;
-        }) {
+    constexpr explicit argument(any_value) : matcher_([](const T &) { return true; }) {
     }
 
     template <typename Matcher>
-    explicit argument(const Matcher &m) : m_(new(data_) Matcher(m)) {
+    explicit argument(const Matcher &m) {
+        m_.set_by_other_type(m);
     }
 
     bool match(const T &v) {
@@ -521,12 +596,12 @@ public:
 template <typename T, typename U>
 struct field_matcher : public matcher<T> {
 
-    explicit field_matcher(U T::*member, const U &value)
-        : offset_(offset_of(member)), value_(new(data_) U(value)) {
+    constexpr explicit field_matcher(U T::*member, const U &value)
+            : offset_(offset_of(member)), value_(value) {
     }
 
     bool match(const T &s) override {
-        return *reinterpret_cast<const U *>(reinterpret_cast<const char *>(&s) + offset_) == *value_;
+        return *reinterpret_cast<const U *>(reinterpret_cast<const char *>(&s) + offset_) == value_.get();
     }
 
 private:
@@ -537,8 +612,8 @@ private:
     }
 
     std::size_t offset_;
-    char data_[sizeof(U)];
-    U *value_ = nullptr;
+    unary_container<U> value_;
+
 };
 
 template <std::size_t L, std::size_t I = 0, typename S = expand<>>
@@ -591,10 +666,6 @@ struct arguments final : public arguments_impl<typename range<sizeof...(T)>::typ
         : arguments_impl<typename range<sizeof...(T)>::type, T...>(values...) {
     }
 
-    static constexpr std::size_t size() {
-        return sizeof...(T);
-    }
-
 };
 
 template <>
@@ -604,30 +675,9 @@ struct arguments<> final {
     }
 };
 
-template <typename T>
-class return_value final {
-
-    unsigned char data_[sizeof(T)];
-    T *value_ = reinterpret_cast<T *>(data_);
-
-public:
-
-    return_value() : data_() {
-    }
-
-    template <typename ...Args>
-    void set(const Args &...v) {
-        value_ = new(data_) T(v...);
-    }
-
-    T &get() const {
-        return *value_;
-    }
-
-};
-
-template <>
-class return_value<void> final {
+template <typename ...Args>
+struct is_empty {
+    constexpr static const bool value = sizeof...(Args) == 0;
 };
 
 template <typename T>
@@ -640,11 +690,9 @@ class mock_handler final {
     bool (*matcher_)(Args ...) = nullptr;
     std::size_t expected_nr_of_calls_ = 1;
     std::size_t actual_nr_of_calls_ = 0;
-    return_value<R> return_value_;
+    unary_container<R> return_value_;
+    unary_container<arguments<Args...>> arguments_;
     typename list<mock_handler>::node node_;
-
-    unsigned char data_[sizeof(arguments<Args...>)];
-    arguments<Args...> *arguments_ = nullptr;
 
     template <typename T = R>
     typename std::enable_if<
@@ -653,8 +701,19 @@ class mock_handler final {
         return return_value_.get();
     }
 
-    bool operator()(const Args &...args) {
-        if (arguments_ != nullptr) {
+    template <typename T = bool>
+    typename std::enable_if<
+        is_empty<Args...>::value, T
+    >::type operator()() {
+        ++actual_nr_of_calls_;
+        return true;
+    }
+
+    template <typename T = bool>
+    typename std::enable_if<
+        !is_empty<Args...>::value, T
+    >::type operator()(const Args &...args) {
+        if (arguments_) {
             bool is_matched = arguments_->compare(args...);
             if (is_matched) {
                 ++actual_nr_of_calls_;
@@ -680,7 +739,10 @@ public:
         }
     }
 
-    mock_handler &match_args(bool (*matcher)(Args ...)) {
+    template <typename T = mock_handler &>
+    typename std::enable_if<
+        !is_empty<Args...>::value, T
+    >::type match_args(bool (*matcher)(Args ...)) {
         matcher_ = matcher;
         return *this;
     }
@@ -693,9 +755,11 @@ public:
         return *this;
     }
 
-    template <typename ...T>
-    mock_handler &for_arguments(T ...args) {
-        arguments_ = new(data_) arguments<Args...>(args...);
+    template <typename U = mock_handler &, typename ...T>
+    typename std::enable_if<
+        !is_empty<T...>::value, U
+    >::type for_arguments(T ...args) {
+        arguments_.set(args...);
         return *this;
     }
 
@@ -718,7 +782,7 @@ class mock final {};
 template <typename R, typename ...Args>
 class mock<R(Args...)> final {
 
-    return_value<R> default_return_value_;
+    unary_container<R> default_return_value_;
     list<mock_handler<R, Args...>> handlers_;
 
 public:
@@ -739,7 +803,7 @@ public:
         std::is_void<T>::value, T
     >::type operator()(Args ...args) {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            (*it)(args...);
+            (*it)(helpers::forward<Args>(args)...);
         }
     }
 
@@ -748,7 +812,7 @@ public:
         !std::is_void<T>::value, T
     >::type operator()(Args ...args) {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            if ((*it)(args...)) {
+            if ((*it)(helpers::forward<Args>(args)...)) {
                 return it->get_return_value();
             }
         }
@@ -818,34 +882,19 @@ public:
     template <typename T> \
     bool name##_matcher<T>::match(const T &lhs)
 
-MATCHER(eq, n) {
-    return arg == n;
-}
-
-MATCHER(ne, n) {
-    return arg != n;
-}
-
-MATCHER(ge, n) {
-    return n >= arg;
-}
-
-MATCHER(gt, n) {
-    return n > arg;
-}
-
-MATCHER(le, n) {
-    return n <= arg;
-}
-
-MATCHER(lt, n) {
-    return n < arg;
-}
+MATCHER(eq, n) { return arg == n; }
+MATCHER(ne, n) { return arg != n; }
+MATCHER(ge, n) { return n >= arg; }
+MATCHER(gt, n) { return n > arg; }
+MATCHER(le, n) { return n <= arg; }
+MATCHER(lt, n) { return n < arg; }
 
 template <typename T, typename U>
 inline detail::field_matcher<T, U> field(U T::*member, const U &val) {
     return detail::field_matcher<T, U>(member, val);
 }
+
+extern detail::any_value _;
 
 #ifdef YATF_MAIN
 
@@ -857,7 +906,7 @@ printf_t printf_;
 
 } // namespace detail
 
-any_value _;
+detail::any_value _;
 
 inline config read_config(unsigned argc, const char **argv) {
     config c;

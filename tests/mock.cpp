@@ -1,5 +1,7 @@
 #include <ctime>
 #include <limits>
+#include <memory>
+#include <utility>
 #include <cstdlib>
 #include <boost/test/unit_test.hpp>
 
@@ -12,7 +14,7 @@ using namespace yatf::detail;
 
 #define GET_HANDLER(mock, handler_name) \
     auto handler_name = mock.get_handler(); \
-    dummy_mock.register_handler(handler_name);
+    mock.register_handler(handler_name);
 
 struct helper {
 
@@ -34,7 +36,12 @@ BOOST_AUTO_TEST_SUITE(mocks_suite)
 template <typename Signature>
 void test_handler_creating() {
     mock<Signature> dummy_mock;
-    GET_HANDLER(dummy_mock, handler);
+    do {
+        GET_HANDLER(dummy_mock, handler);
+    } while (0);
+    do {
+        auto handler = dummy_mock.get_handler();
+    } while (0);
 }
 
 BOOST_FIXTURE_TEST_CASE(can_create_handler, yatf_fixture) {
@@ -167,31 +174,6 @@ BOOST_FIXTURE_TEST_CASE(dummy_test_for_arguments, yatf_fixture) {
 template <typename R>
 void test_matching_by_lambda() {
     do {
-        mock<R()> dummy_mock;
-        do {
-            GET_HANDLER(dummy_mock, handler);
-            handler.schedule_assertion([](std::size_t, std::size_t actual) {
-                BOOST_CHECK_EQUAL(actual, 2);
-            });
-            handler.match_args([]() {
-                return true;
-            });
-            dummy_mock();
-            dummy_mock();
-        } while (0);
-        do {
-            GET_HANDLER(dummy_mock, handler);
-            handler.schedule_assertion([](std::size_t, std::size_t actual) {
-                BOOST_CHECK_EQUAL(actual, 0);
-            });
-            handler.match_args([]() {
-                return false;
-            });
-            dummy_mock();
-            dummy_mock();
-        } while (0);
-    } while (0);
-    do {
         mock<R(int)> dummy_mock;
         do {
             GET_HANDLER(dummy_mock, handler);
@@ -256,18 +238,6 @@ BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_lambda, yatf_fixture) {
 
 template <typename R>
 void test_matching_directly() {
-    do {
-        mock<R()> dummy_mock;
-        do {
-            GET_HANDLER(dummy_mock, handler);
-            handler.schedule_assertion([](std::size_t, std::size_t actual) {
-                BOOST_CHECK_EQUAL(actual, 2);
-            });
-            handler.for_arguments();
-            dummy_mock();
-            dummy_mock();
-        } while (0);
-    } while (0);
     do {
         mock<R(int)> dummy_mock;
         do {
@@ -489,6 +459,38 @@ BOOST_FIXTURE_TEST_CASE(can_match_arguments_by_field, yatf_fixture) {
         BOOST_CHECK_EQUAL(dummy_mock(helper(438)), int());
         BOOST_CHECK_EQUAL(dummy_mock(helper(439)), 999);
     } while (0);
+}
+
+struct some_struct {
+    MOCK(int(int), some_method);
+    MOCK(int(int), some_other_method);
+};
+
+BOOST_FIXTURE_TEST_CASE(can_mock_methods, yatf_fixture) {
+    some_struct object;
+    GET_HANDLER(object.some_method, handler);
+    handler.for_arguments(3).will_return(33);
+    BOOST_CHECK_EQUAL(object.some_method(2), int());
+    BOOST_CHECK_EQUAL(object.some_method(3), 33);
+}
+
+BOOST_FIXTURE_TEST_CASE(require_call_works, yatf_fixture) {
+    mock<void()> dummy_mock;
+    dummy_test_case tc{"suite", "name"};
+    test_session::get().current_test_case(&tc);
+    do {
+        REQUIRE_CALL(dummy_mock);
+    } while (0);
+    BOOST_CHECK_EQUAL(get_assertions(), 1);
+    BOOST_CHECK_EQUAL(get_failed(), 1);
+    std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":482 dummy_mock: expected to be called: 1; actual: 0\n"));
+    BOOST_CHECK_EQUAL(get_buffer(), comp);
+    reset_buffer();
+    do {
+        REQUIRE_CALL(dummy_mock);
+        dummy_mock();
+    } while (0);
+    BOOST_CHECK_EQUAL(get_buffer(), "");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
