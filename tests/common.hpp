@@ -23,14 +23,34 @@ std::string get_buffer();
 void reset_buffer();
 
 struct yatf_fixture {
+
     yatf::detail::printer printer;
+
     yatf_fixture() {
         reset_buffer();
         yatf::detail::test_session::instance_.test_cases_.push_back(dummy_tc);
     }
+
     ~yatf_fixture() {
         reset_buffer();
     }
+
+    static std::size_t get_assertions() {
+        return yatf::detail::test_session::instance_.current_test_case_->assertions_;
+    }
+
+    static std::size_t get_failed() {
+        return yatf::detail::test_session::instance_.current_test_case_->failed_;
+    }
+
+    static const char *get_suite_name() {
+        return yatf::detail::test_session::instance_.current_test_case_->suite_name;
+    }
+
+    static const char *get_test_name() {
+        return yatf::detail::test_session::instance_.current_test_case_->test_name;
+    }
+
 };
 
 namespace yatf {

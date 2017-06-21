@@ -476,8 +476,8 @@ BOOST_FIXTURE_TEST_CASE(require_call_works, yatf_fixture) {
     do {
         REQUIRE_CALL(dummy_mock);
     } while (0);
-    BOOST_CHECK_EQUAL(tc.assertions, 1);
-    BOOST_CHECK_EQUAL(tc.failed, 1);
+    BOOST_CHECK_EQUAL(get_assertions(), 1);
+    BOOST_CHECK_EQUAL(get_failed(), 1);
     std::string comp("assertion failed: " + std::string(__FILE__) + std::string(":477 dummy_mock: expected to be called: 1; actual: 0\n"));
     BOOST_CHECK_EQUAL(get_buffer(), comp);
     reset_buffer();

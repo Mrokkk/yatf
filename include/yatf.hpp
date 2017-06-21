@@ -267,25 +267,28 @@ struct test_session final {
     class test_case {
 
         list<test_case>::node node_;
+        std::size_t assertions_ = 0;
+        std::size_t failed_ = 0;
 
-    public:
+    protected:
+
         const char *suite_name;
         const char *test_name;
-        std::size_t assertions = 0;
-        std::size_t failed = 0;
+
+    public:
 
         void require_true(bool condition, const char *condition_str, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             if (!condition) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is false\n";
             }
         }
 
         void require_false(bool condition, const char *condition_str, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             if (condition) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is true\n";
             }
         }
@@ -293,20 +296,20 @@ struct test_session final {
         template <typename T1, typename T2>
         void require_eq(const T1 &lhs, const T2 &rhs, const char *lhs_str, const char *rhs_str,
                 const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             bool cond = (lhs == rhs);
             if (!cond) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs_str
                          << "\' isn't \'" << rhs_str << "\': " << lhs << " != " << rhs << "\n";
             }
         }
 
         void require_eq(const char *lhs, const char *rhs, const char *, const char *, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             bool cond = compare_strings(lhs, rhs) == 0;
             if (!cond) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs
                          << "\' isn't \'" << rhs << "\n";
             }
@@ -314,9 +317,9 @@ struct test_session final {
 
         void require_call(const char *mock_name, std::size_t expected_nr_of_calls,
                 std::size_t actual_nr_of_calls, const char *file, int line) {
-            ++assertions;
+            ++assertions_;
             if (expected_nr_of_calls != actual_nr_of_calls) {
-                ++failed;
+                ++failed_;
                 printer_ << "assertion failed: " << file << ':' << line << " " << mock_name
                          << ": expected to be called: " << expected_nr_of_calls << "; actual: "
                          << actual_nr_of_calls << "\n";
@@ -326,6 +329,7 @@ struct test_session final {
         virtual void test_body() = 0;
 
         friend test_session;
+        friend yatf_fixture;
 
     };
 
@@ -367,16 +371,16 @@ private:
     }
 
     void test_result(test_case &t) const {
-        if (t.failed) {
+        if (t.failed_) {
             print_in_color(messages::get(messages::msg::fail), printer::color::red);
-            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions) << " assertions)\n";
+            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
         }
         else {
             if (config_.fails_only) return;
             if (config_.oneliners)
                 printer_ << printer::cursor_movement::up;
             print_in_color(messages::get(messages::msg::pass), printer::color::green);
-            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions) << " assertions)\n";
+            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
         }
     }
 
@@ -395,7 +399,7 @@ private:
                 test_start_message(test);
                 current_test_case_ = &test;
                 test.test_body();
-                auto result = test.failed;
+                auto result = test.failed_;
                 test_result(test);
                 return result;
             }
@@ -430,7 +434,7 @@ public:
             test_start_message(test);
             current_test_case_ = &test;
             test.test_body();
-            if (test.failed) {
+            if (test.failed_) {
                 ++failed;
             }
             test_result(test);
