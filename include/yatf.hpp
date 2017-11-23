@@ -7,11 +7,10 @@ struct yatf_fixture;
 namespace yatf {
 
 struct config final {
-    bool color = true;
-    bool oneliners = false;
-    bool fails_only = false;
-    constexpr config() = default;
-    explicit config(bool color, bool oneliners, bool fails_only)
+    bool color;
+    bool oneliners;
+    bool fails_only;
+    explicit config(bool color = true, bool oneliners = false, bool fails_only = false)
         : color(color), oneliners(oneliners), fails_only(fails_only) {}
 };
 
@@ -202,29 +201,6 @@ struct list final {
 
     };
 
-private:
-
-    node head_;
-    std::size_t offset_;
-
-    void add_node(node *new_node, node *prev, node *next) {
-        new_node->set_offset(offset_);
-        next->prev() = prev->next() = new_node;
-        new_node->next() = next;
-        new_node->prev() = prev;
-    }
-
-    template <typename T, typename U>
-    std::size_t offset_of(U T::*member) const {
-        return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
-    }
-
-    node *list_member(Type *obj) {
-        return reinterpret_cast<node *>(reinterpret_cast<char *>(obj) + offset_);
-    }
-
-public:
-
     using const_iterator = iterator;
 
     template <typename U>
@@ -249,6 +225,25 @@ public:
         return iterator(&head_);
     }
 
+private:
+    void add_node(node *new_node, node *prev, node *next) {
+        new_node->set_offset(offset_);
+        next->prev() = prev->next() = new_node;
+        new_node->next() = next;
+        new_node->prev() = prev;
+    }
+
+    template <typename T, typename U>
+    std::size_t offset_of(U T::*member) const {
+        return reinterpret_cast<char *>(&(static_cast<T *>(nullptr)->*member)) - static_cast<char *>(nullptr);
+    }
+
+    node *list_member(Type *obj) {
+        return reinterpret_cast<node *>(reinterpret_cast<char *>(obj) + offset_);
+    }
+
+    node head_;
+    std::size_t offset_;
 };
 
 struct test_session final {
@@ -264,18 +259,7 @@ struct test_session final {
 
     };
 
-    class test_case {
-
-        list<test_case>::node node_;
-        std::size_t assertions_ = 0;
-        std::size_t failed_ = 0;
-
-    protected:
-
-        const char *suite_name;
-        const char *test_name;
-
-    public:
+    struct test_case {
 
         void require_true(bool condition, const char *condition_str, const char *file, int line) {
             ++assertions_;
@@ -328,9 +312,16 @@ struct test_session final {
 
         virtual void test_body() = 0;
 
+    protected:
+        const char *suite_name;
+        const char *test_name;
+
+    private:
         friend test_session;
         friend yatf_fixture;
-
+        list<test_case>::node node_;
+        std::size_t assertions_ = 0;
+        std::size_t failed_ = 0;
     };
 
 private:
@@ -385,7 +376,7 @@ private:
     }
 
     int call_one_test(const char *test_name) {
-        char suite_name[512]; // FIXME
+        char suite_name[512]; // FIXME: what about longer names?
         copy_string(test_name, suite_name);
         auto dot_position = find(suite_name, '.');
         if (dot_position == nullptr) {
@@ -447,6 +438,7 @@ public:
         return *current_test_case_;
     }
 
+    // FIXME: remove this hack
     void current_test_case(test_case *tc) {
         current_test_case_ = tc; // for tests only
     }
@@ -475,12 +467,7 @@ inline constexpr typename std::remove_reference<T>::type&& move(T &&v) noexcept 
 } // namespace helpers
 
 template <typename T, std::size_t Size = 0>
-class unary_container final {
-
-    unsigned char data_[Size == 0 ? sizeof(T) : Size];
-    T *value_ = nullptr;
-
-public:
+struct unary_container final {
 
     constexpr unary_container() : data_() {
     }
@@ -529,6 +516,9 @@ public:
         return false;
     }
 
+private:
+    unsigned char data_[Size == 0 ? sizeof(T) : Size];
+    T *value_ = nullptr;
 };
 
 template <>
@@ -562,13 +552,7 @@ struct choose_nth<0, T, U...> {
 };
 
 template <std::size_t N, typename T>
-class argument {
-
-    bool (*matcher_)(const T &) = nullptr;
-    unary_container<T> value_;
-    unary_container<matcher<T>, 3 * sizeof(matcher<T>) + 2 * sizeof(T)> m_;
-
-public:
+struct argument {
 
     constexpr explicit argument(const T &val) : value_(val) {
     }
@@ -591,6 +575,10 @@ public:
         return value_ == v;
     }
 
+private:
+    bool (*matcher_)(const T &) = nullptr;
+    unary_container<T> value_;
+    unary_container<matcher<T>, 3 * sizeof(matcher<T>) + 2 * sizeof(T)> m_; // FIXME: make it more specific
 };
 
 template <typename T, typename U>
@@ -684,7 +672,49 @@ template <typename T>
 class mock;
 
 template <typename R, typename ...Args>
-class mock_handler final {
+struct mock_handler final {
+
+    ~mock_handler() {
+        if (scheduled_assert_) {
+            scheduled_assert_(expected_nr_of_calls_, actual_nr_of_calls_);
+        }
+    }
+
+    template <typename T = mock_handler &>
+    typename std::enable_if<
+        !is_empty<Args...>::value, T
+    >::type match_args(bool (*matcher)(Args ...)) {
+        matcher_ = matcher;
+        return *this;
+    }
+
+    template <typename T = R>
+    typename std::enable_if<
+        !std::is_void<T>::value, mock_handler &
+    >::type will_return(const T &val) {
+        return_value_.set(val);
+        return *this;
+    }
+
+    template <typename U = mock_handler &, typename ...T>
+    typename std::enable_if<
+        !is_empty<T...>::value, U
+    >::type for_arguments(T ...args) {
+        arguments_.set(args...);
+        return *this;
+    }
+
+    void schedule_assertion(void (*l)(std::size_t, std::size_t)) {
+        scheduled_assert_ = l;
+    }
+
+    mock_handler &times(std::size_t nr = 1) {
+        expected_nr_of_calls_ = nr;
+        return *this;
+    }
+
+private:
+    friend mock<R(Args...)>;
 
     void (*scheduled_assert_)(std::size_t, std::size_t) = nullptr;
     bool (*matcher_)(Args ...) = nullptr;
@@ -731,61 +761,13 @@ class mock_handler final {
         return true;
     }
 
-public:
-
-    ~mock_handler() {
-        if (scheduled_assert_) {
-            scheduled_assert_(expected_nr_of_calls_, actual_nr_of_calls_);
-        }
-    }
-
-    template <typename T = mock_handler &>
-    typename std::enable_if<
-        !is_empty<Args...>::value, T
-    >::type match_args(bool (*matcher)(Args ...)) {
-        matcher_ = matcher;
-        return *this;
-    }
-
-    template <typename T = R>
-    typename std::enable_if<
-        !std::is_void<T>::value, mock_handler &
-    >::type will_return(const T &val) {
-        return_value_.set(val);
-        return *this;
-    }
-
-    template <typename U = mock_handler &, typename ...T>
-    typename std::enable_if<
-        !is_empty<T...>::value, U
-    >::type for_arguments(T ...args) {
-        arguments_.set(args...);
-        return *this;
-    }
-
-    void schedule_assertion(void (*l)(std::size_t, std::size_t)) {
-        scheduled_assert_ = l;
-    }
-
-    mock_handler &times(std::size_t nr = 1) {
-        expected_nr_of_calls_ = nr;
-        return *this;
-    }
-
-    friend mock<R(Args...)>;
-
 };
 
 template <typename T>
 class mock final {};
 
 template <typename R, typename ...Args>
-class mock<R(Args...)> final {
-
-    unary_container<R> default_return_value_;
-    list<mock_handler<R, Args...>> handlers_;
-
-public:
+struct mock<R(Args...)> final {
 
     mock() : handlers_(&mock_handler<R, Args...>::node_) {
     }
@@ -819,6 +801,9 @@ public:
         return default_return_value_.get();
     }
 
+private:
+    unary_container<R> default_return_value_;
+    list<mock_handler<R, Args...>> handlers_;
 };
 
 } // namespace detail
