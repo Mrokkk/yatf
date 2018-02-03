@@ -7,11 +7,16 @@ struct yatf_fixture;
 namespace yatf {
 
 struct config final {
+
     bool color;
     bool oneliners;
     bool fails_only;
+
     explicit config(bool color = true, bool oneliners = false, bool fails_only = false)
-        : color(color), oneliners(oneliners), fails_only(fails_only) {}
+        : color(color)
+        , oneliners(oneliners)
+        , fails_only(fails_only) {
+    }
 };
 
 using printf_t = int (*)(const char *, ...);
@@ -44,12 +49,14 @@ inline void copy_string(const char *src, char *dest) {
     *dest = 0;
 }
 
-extern printf_t printf_;
-
 struct printer final {
 
     enum class cursor_movement { up };
     enum class color { red, green, reset };
+
+    void initialize(const printf_t printf) {
+        printf_ = printf;
+    }
 
     template <typename T>
     typename std::enable_if<
@@ -125,23 +132,14 @@ struct printer final {
         return *this;
     }
 
+private:
+    printf_t printf_;
 };
-
-extern printer printer_;
 
 template <typename Type>
 struct list final {
 
-    class node {
-
-        node *next_ = this, *prev_ = this;
-        std::size_t offset_ = 0;
-
-        Type *this_offset() {
-            return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) - offset_);
-        }
-
-    public:
+    struct node {
 
         ~node() {
             if (next_ != this) next()->prev() = prev();
@@ -168,13 +166,16 @@ struct list final {
             offset_ = offset;
         }
 
+    private:
+        Type *this_offset() {
+            return reinterpret_cast<Type *>(reinterpret_cast<char *>(this) - offset_);
+        }
+
+        node *next_ = this, *prev_ = this;
+        std::size_t offset_ = 0;
     };
 
-    class iterator final {
-
-        node *ptr_ = nullptr;
-
-    public:
+    struct iterator final {
 
         explicit iterator(node *n) : ptr_(n) {
         }
@@ -199,6 +200,8 @@ struct list final {
             return it.ptr_ != ptr_;
         }
 
+    private:
+        node *ptr_ = nullptr;
     };
 
     using const_iterator = iterator;
@@ -265,7 +268,7 @@ struct test_session final {
             ++assertions_;
             if (!condition) {
                 ++failed_;
-                printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is false\n";
+                get().printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is false\n";
             }
         }
 
@@ -273,7 +276,7 @@ struct test_session final {
             ++assertions_;
             if (condition) {
                 ++failed_;
-                printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is true\n";
+                get().printer_ << "assertion failed: " << file << ':' << line << " \'" << condition_str << "\' is true\n";
             }
         }
 
@@ -284,7 +287,7 @@ struct test_session final {
             bool cond = (lhs == rhs);
             if (!cond) {
                 ++failed_;
-                printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs_str
+                get().printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs_str
                          << "\' isn't \'" << rhs_str << "\': " << lhs << " != " << rhs << "\n";
             }
         }
@@ -294,7 +297,7 @@ struct test_session final {
             bool cond = compare_strings(lhs, rhs) == 0;
             if (!cond) {
                 ++failed_;
-                printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs
+                get().printer_ << "assertion failed: " << file << ':' << line << " \'" << lhs
                          << "\' isn't \'" << rhs << "\n";
             }
         }
@@ -304,7 +307,7 @@ struct test_session final {
             ++assertions_;
             if (expected_nr_of_calls != actual_nr_of_calls) {
                 ++failed_;
-                printer_ << "assertion failed: " << file << ':' << line << " " << mock_name
+                get().printer_ << "assertion failed: " << file << ':' << line << " " << mock_name
                          << ": expected to be called: " << expected_nr_of_calls << "; actual: "
                          << actual_nr_of_calls << "\n";
             }
@@ -329,49 +332,49 @@ private:
     list<test_case> test_cases_;
     test_case *current_test_case_;
     std::size_t tests_number_ = 0;
+    printer printer_;
     config config_;
-    static test_session instance_;
     friend yatf_fixture;
 
     void print_in_color(const char *str, printer::color color) const {
-        if (config_.color) printer_ << color;
-        printer_ << str;
-        if (config_.color) printer_ << printer::color::reset;
+        if (config_.color) get().printer_ << color;
+        get().printer_ << str;
+        if (config_.color) get().printer_ << printer::color::reset;
     }
 
     void test_session_start_message() const {
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
-        printer_ << " Running " << static_cast<int>(tests_number_) << " test cases\n";
+        get().printer_ << " Running " << static_cast<int>(tests_number_) << " test cases\n";
     }
 
     void test_session_end_message(int failed) const {
         if (config_.fails_only && config_.oneliners)
-            printer_ << printer::cursor_movement::up;
+            get().printer_ << printer::cursor_movement::up;
         print_in_color(messages::get(messages::msg::start_end), printer::color::green);
-        printer_ << " Passed " << static_cast<int>(tests_number_ - failed) << " test cases\n";
+        get().printer_ << " Passed " << static_cast<int>(tests_number_ - failed) << " test cases\n";
         if (failed) {
             print_in_color(messages::get(messages::msg::start_end), printer::color::red);
-            printer_ << " Failed " << static_cast<int>(failed) << " test cases\n";
+            get().printer_ << " Failed " << static_cast<int>(failed) << " test cases\n";
         }
     }
 
     void test_start_message(test_case &t) const {
         if (config_.fails_only) return;
         print_in_color(messages::get(messages::msg::run), printer::color::green);
-        printer_ << " " << t.suite_name << "." << t.test_name << "\n";
+        get().printer_ << " " << t.suite_name << "." << t.test_name << "\n";
     }
 
     void test_result(test_case &t) const {
         if (t.failed_) {
             print_in_color(messages::get(messages::msg::fail), printer::color::red);
-            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
+            get().printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
         }
         else {
             if (config_.fails_only) return;
             if (config_.oneliners)
-                printer_ << printer::cursor_movement::up;
+                get().printer_ << printer::cursor_movement::up;
             print_in_color(messages::get(messages::msg::pass), printer::color::green);
-            printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
+            get().printer_ << " " << t.suite_name << "." << t.test_name << " (" << static_cast<int>(t.assertions_) << " assertions)\n";
         }
     }
 
@@ -405,8 +408,14 @@ public:
     test_session() : test_cases_(&test_case::node_) {
     }
 
+    test_session &initialize(const printf_t printf) {
+        printer_.initialize(printf);
+        return *this;
+    }
+
     static test_session &get() {
-        return instance_;
+        static test_session instance;
+        return instance;
     }
 
     void register_test(test_case *t) {
@@ -578,7 +587,7 @@ struct argument {
 private:
     bool (*matcher_)(const T &) = nullptr;
     unary_container<T> value_;
-    unary_container<matcher<T>, 3 * sizeof(matcher<T>) + 2 * sizeof(T)> m_; // FIXME: make it more specific
+    unary_container<matcher<T>, 3 * sizeof(matcher<T>) + 2 * sizeof(T)> m_; // FIXME: it would fail for lambdas with capture list
 };
 
 template <typename T, typename U>
@@ -601,7 +610,6 @@ private:
 
     std::size_t offset_;
     unary_container<U> value_;
-
 };
 
 template <std::size_t L, std::size_t I = 0, typename S = expand<>>
@@ -879,49 +887,35 @@ inline detail::field_matcher<T, U> field(U T::*member, const U &val) {
     return detail::field_matcher<T, U>(member, val);
 }
 
-extern detail::any_value _;
-
-#ifdef YATF_MAIN
-
-namespace detail {
-
-test_session test_session::instance_;
-printer printer_;
-printf_t printf_;
-
-} // namespace detail
-
+namespace {
 detail::any_value _;
+} // namespace
 
 inline config read_config(unsigned argc, const char **argv) {
     config c;
     for (unsigned i = 1; i < argc; ++i) {
         if (!detail::compare_strings(argv[i], "--no-color")) c.color = false;
-        else if (!detail::compare_strings(argv[i], "--oneliners")) c.oneliners = true;
-        else if (!detail::compare_strings(argv[i], "--fails-only")) c.fails_only = true;
+        if (!detail::compare_strings(argv[i], "--oneliners")) c.oneliners = true;
+        if (!detail::compare_strings(argv[i], "--fails-only")) c.fails_only = true;
     }
     return c;
 }
 
 inline int main(printf_t print_func, unsigned argc = 0, const char **argv = nullptr) {
-    detail::printf_ = print_func;
-    return detail::test_session::get().run(read_config(argc, argv));
+    (void)_;
+    return detail::test_session::get().initialize(print_func).run(read_config(argc, argv));
 }
 
 inline int main(printf_t print_func, config &c) {
-    detail::printf_ = print_func;
-    return detail::test_session::get().run(c);
+    return detail::test_session::get().initialize(print_func).run(c);
 }
 
 inline int run_one(printf_t print_func, const char *test_name, config &c) {
     if (test_name == nullptr) {
         return -1;
     }
-    detail::printf_ = print_func;
-    return detail::test_session::get().run(c, test_name);
+    return detail::test_session::get().initialize(print_func).run(c, test_name);
 }
-
-#endif
 
 } // namespace yatf
 

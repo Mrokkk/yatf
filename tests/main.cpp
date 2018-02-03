@@ -29,15 +29,5 @@ void reset_buffer() {
     position = 0;
 }
 
-namespace yatf {
-namespace detail {
-
-test_session test_session::instance_;
-printer printer_;
-printf_t printf_ = print;
-
-} // namespace detail
-} // namespace yatf
-
 dummy_test_case dummy_tc{"suite", "test"};
 

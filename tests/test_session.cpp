@@ -58,7 +58,7 @@ BOOST_FIXTURE_TEST_CASE(can_run_tests, yatf_fixture) {
             yatf::config{true, true, true}
     };
     auto failed = 0u;
-    printf_ = stubbed_printf;
+    test_session::get().initialize(stubbed_printf);
     for (auto c = configs.begin(); c != configs.end(); ++c) {
         for (auto i = 0u; i < 512; ++i) {
             bool pass = std::rand() % 2 == 1;
@@ -70,7 +70,7 @@ BOOST_FIXTURE_TEST_CASE(can_run_tests, yatf_fixture) {
             BOOST_CHECK_EQUAL(failed, test_session::get().run(*c));
         }
     }
-    printf_ = print;
+    test_session::get().initialize(print);
 }
 
 BOOST_FIXTURE_TEST_CASE(can_run_one_test, yatf_fixture) {
@@ -86,7 +86,7 @@ BOOST_FIXTURE_TEST_CASE(can_run_one_test, yatf_fixture) {
             yatf::config{true, false, true},
             yatf::config{true, true, true}
     };
-    printf_ = stubbed_printf;
+    test_session::get().initialize(stubbed_printf);
     for (auto c = configs.begin(); c != ++configs.begin(); ++c) {
         tests.push_back(std::make_unique<suite__passing_test_case>("t", "t1"));
         BOOST_CHECK_EQUAL(0, test_session::get().run(*c, "t.t1"));
@@ -95,7 +95,7 @@ BOOST_FIXTURE_TEST_CASE(can_run_one_test, yatf_fixture) {
         BOOST_CHECK(test_session::get().run(*c, "t.t3") < 0);
         BOOST_CHECK(test_session::get().run(*c, "some_bad_name") < 0);
     }
-    printf_ = print;
+    test_session::get().initialize(print);
 }
 
 BOOST_FIXTURE_TEST_CASE(can_be_created, yatf_fixture) {
