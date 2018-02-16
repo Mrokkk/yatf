@@ -8,7 +8,6 @@ YATF, which stands for Yet Another Test Framework, is an automated test framewor
 ### How to use it
 ```
 // in main.cpp
-#define YATF_MAIN
 #include <yatf.hpp>
 #include <cstdio>
 
@@ -17,7 +16,6 @@ int main(int argc, const char *argv[]) {
     // in this case it's from cstdio
     return yatf::main(printf, argc, argv);
 }
-
 ```
 ```
 // in tests
@@ -30,8 +28,22 @@ TEST(suite_name, test_case1) {
 ```
 It also supports fixtures, which are passed as a third parameter to the `TEST` macro:
 ```
-struct some_fixture {};
+struct some_fixture {
+    int variable = 2;
+};
 
 TEST(suite_name, test_case2, some_fixture) {
+    variable = 3;
+    REQUIRE_EQ(variable, 3);
+}
+```
+Mocking methods and functions is also available. It's done by simple `MOCK` macro, which returns a `mock_handler` objects. Assertions are resolved at the end of theirs scope.
+```
+MOCK(int(int, int), sum);
+
+TEST(suite, test) {
+    REQUIRE_CALL(sum).for_arguments(2, 3).will_return(4);
+    auto result = sum(2, 3);
+    REQUIRE_EQ(result, 4);
 }
 ```
